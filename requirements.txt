@@ -1,0 +1,9 @@
+requests>=2.32
+Flask>=3.1
+pandas>=2.2
+numpy>=1.26
+matplotlib>=3.9
+seaborn>=0.13
+pyarrow>=19
+streamlit>=1.50
+plotly>=6.0
