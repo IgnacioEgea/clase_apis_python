@@ -1,0 +1,3 @@
+Número de registros iniciales: 278
+Número de registros borrados: 14
+Número de registros finales: 264
