@@ -11,7 +11,10 @@ son los ejemplos didácticos originales; la API personal final está en
 3. `03_clientes_json/`: endpoint `/clientes` con respuesta JSON.
 4. `04_datos_json/`: lectura de clientes desde un fichero JSON.
 5. `05_datos_csv/`: descarga del fichero de clientes CSV.
-6. `06_filtros/`: búsqueda por ID y filtros de consulta insensibles a mayúsculas.
+6. `06_filtros/`: API con datos de clientes sintéticos, búsqueda por ID y filtros
+   insensibles a mayúsculas. Se puede desplegar con el servicio `api-clientes`
+   definido en `render.yaml`; requiere publicar primero el repositorio en GitHub
+   y vincularlo a Render.
 7. `api_videojuegos/`: catálogo PS5 desde 2020 con filtros, fichas visuales,
    búsqueda aproximada, JSON bajo demanda e historial de juegos seleccionados.
 
@@ -33,6 +36,19 @@ otra terminal, ejecuta:
 ```bash
 python ejercicios_api/02_consumir_api/consumir_api.py
 ```
+
+La API de clientes carga sus datos JSON al iniciar y expone `/clientes`,
+`/clientes/<id_cliente>` y `/health`. Sus pruebas se ejecutan desde la raíz con:
+
+```bash
+python -m unittest discover -s ejercicios_api/06_filtros -p 'test_*.py' -v
+```
+
+El cliente que normaliza/enriquece esos datos y el dashboard Streamlit están
+documentados en [`consumir_primerapi/README.md`](../consumir_primerapi/README.md).
+Para desplegar, publica el repositorio en GitHub y crea los servicios definidos
+en el `render.yaml` de la raíz. Render mostrará la URL pública al terminar;
+configura esa URL en `API_URL` incluyendo `/clientes` antes de ejecutar el cliente.
 
 La API final usa las rutas `/api/anios`, `/api/videojuegos?anio=2022`,
 `/api/videojuegos/<id>` y `/videojuegos.csv?anio=2022`. La lista acepta los

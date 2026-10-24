@@ -1,5 +1,12 @@
 services:
   - type: web
+    name: api-clientes
+    runtime: python
+    rootDir: ejercicios_api/06_filtros
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
+    healthCheckPath: /health
+  - type: web
     name: calendario-ps5
     runtime: python
     rootDir: ejercicios_api/api_videojuegos

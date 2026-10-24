@@ -1,18 +1,158 @@
 [
   {
+    "estado_cuenta": {
+      "activo": true,
+      "fecha_alta": "2021-10-15T08:30:00Z",
+      "ultima_actividad": "2026-06-15T10:15:24Z"
+    },
     "id_cliente": "CLI-2026-894021",
     "informacion_personal": {
+      "apellido": "Gomez",
+      "fecha_nacimiento": "1992-04-12",
       "nombre": "Ana",
-      "apellido": "Gómez",
       "pais_residencia": "ES"
+    },
+    "productos_activos": {
+      "cuentas_corrientes": 1,
+      "inversiones": true,
+      "prestamos_vigentes": 0,
+      "tarjetas_credito": 2
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 45000,
+      "puntuacion_riesgo_pld": 0.18,
+      "score_crediticio_interno": 740,
+      "tipo_cliente": "Particular"
     }
   },
   {
+    "estado_cuenta": {
+      "activo": true,
+      "fecha_alta": "2020-03-08T12:10:00Z",
+      "ultima_actividad": "2026-10-12T15:40:00Z"
+    },
     "id_cliente": "CLI-2026-123456",
     "informacion_personal": {
-      "nombre": "Carlos",
       "apellido": "Ruiz",
+      "fecha_nacimiento": "1987-09-23",
+      "nombre": "Carlos",
       "pais_residencia": "MX"
+    },
+    "productos_activos": {
+      "cuentas_corrientes": 2,
+      "inversiones": false,
+      "prestamos_vigentes": 2,
+      "tarjetas_credito": 1
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 38000,
+      "puntuacion_riesgo_pld": 0.32,
+      "score_crediticio_interno": 615,
+      "tipo_cliente": "Particular"
+    }
+  },
+  {
+    "estado_cuenta": {
+      "activo": true,
+      "fecha_alta": "2019-05-21T09:00:00Z",
+      "ultima_actividad": "2026-10-20T11:05:00Z"
+    },
+    "id_cliente": "CLI-2026-200301",
+    "informacion_personal": {
+      "apellido": "Luna",
+      "fecha_nacimiento": "1978-02-17",
+      "nombre": "Sofia",
+      "pais_residencia": "ES"
+    },
+    "productos_activos": {
+      "cuentas_corrientes": 3,
+      "inversiones": true,
+      "prestamos_vigentes": 1,
+      "tarjetas_credito": 2
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 72000,
+      "puntuacion_riesgo_pld": 0.12,
+      "score_crediticio_interno": 890,
+      "tipo_cliente": "Particular"
+    }
+  },
+  {
+    "estado_cuenta": {
+      "activo": true,
+      "fecha_alta": "2022-01-10T08:00:00Z",
+      "ultima_actividad": "2026-09-30T17:20:00Z"
+    },
+    "id_cliente": "CLI-2026-310407",
+    "informacion_personal": {
+      "apellido": "Innovacion",
+      "fecha_nacimiento": null,
+      "nombre": "Soluciones",
+      "pais_residencia": "ES"
+    },
+    "productos_activos": {
+      "cuentas_corrientes": 4,
+      "inversiones": true,
+      "prestamos_vigentes": 4,
+      "tarjetas_credito": 3
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 240000,
+      "puntuacion_riesgo_pld": 0.21,
+      "score_crediticio_interno": 805,
+      "tipo_cliente": "Empresa"
+    }
+  },
+  {
+    "estado_cuenta": {
+      "activo": true,
+      "fecha_alta": "2023-07-04T14:25:00Z",
+      "ultima_actividad": "2026-08-01T09:45:00Z"
+    },
+    "id_cliente": "CLI-2026-450912",
+    "informacion_personal": {
+      "apellido": "Martin",
+      "fecha_nacimiento": "1995-11-30",
+      "nombre": "Diego",
+      "pais_residencia": "CO"
+    },
+    "productos_activos": {
+      "cuentas_corrientes": 1,
+      "inversiones": false,
+      "prestamos_vigentes": 3,
+      "tarjetas_credito": 1
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 29000,
+      "puntuacion_riesgo_pld": 0.47,
+      "score_crediticio_interno": 520,
+      "tipo_cliente": "Particular"
+    }
+  },
+  {
+    "estado_cuenta": {
+      "activo": true,
+      "fecha_alta": "2018-11-19T10:10:00Z",
+      "ultima_actividad": "2026-10-21T13:35:00Z"
+    },
+    "id_cliente": "CLI-2026-570116",
+    "informacion_personal": {
+      "apellido": "Norte",
+      "fecha_nacimiento": null,
+      "nombre": "Comercial",
+      "pais_residencia": "MX"
+    },
+    "productos_activos": {
+      "cuentas_corrientes": 5,
+      "inversiones": true,
+      "prestamos_vigentes": 1,
+      "tarjetas_credito": 4
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 510000,
+      "puntuacion_riesgo_pld": 0.09,
+      "score_crediticio_interno": 930,
+      "tipo_cliente": "Empresa"
     }
   }
 ]

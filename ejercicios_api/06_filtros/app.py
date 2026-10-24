@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +8,21 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 ARCHIVO_CLIENTES = Path(__file__).resolve().parent / "data" / "datos_clientes.json"
+
+
+def cargar_clientes() -> list[dict[str, Any]]:
+    with ARCHIVO_CLIENTES.open(encoding="utf-8") as archivo:
+        clientes = json.load(archivo)
+    if not isinstance(clientes, list) or not all(
+        isinstance(cliente, dict) for cliente in clientes
+    ):
+        raise ValueError(
+            f"El archivo {ARCHIVO_CLIENTES} debe contener una lista de clientes"
+        )
+    return clientes
+
+
+CLIENTES = cargar_clientes()
 
 
 def coincide_filtro(datos: Any, campo_buscado: str, valor_buscado: str) -> bool:
@@ -30,17 +46,11 @@ def coincide_filtro(datos: Any, campo_buscado: str, valor_buscado: str) -> bool:
     return False
 
 
-def cargar_clientes() -> list[dict[str, Any]]:
-    with ARCHIVO_CLIENTES.open(encoding="utf-8") as archivo:
-        return json.load(archivo)
-
-
 @app.route("/clientes", methods=["GET"])
 def obtener_clientes():
-    clientes = cargar_clientes()
     consulta = request.args.get("q")
     if consulta is None:
-        return jsonify(clientes)
+        return jsonify(CLIENTES)
 
     filtros = []
     for filtro in consulta.split():
@@ -53,7 +63,7 @@ def obtener_clientes():
 
     resultados = [
         cliente
-        for cliente in clientes
+        for cliente in CLIENTES
         if all(coincide_filtro(cliente, campo, valor) for campo, valor in filtros)
     ]
     return jsonify(resultados)
@@ -61,13 +71,16 @@ def obtener_clientes():
 
 @app.route("/clientes/<id_cliente>", methods=["GET"])
 def obtener_cliente_id(id_cliente: str):
-    cliente = next(
-        (c for c in cargar_clientes() if c["id_cliente"] == id_cliente), None
-    )
+    cliente = next((c for c in CLIENTES if c["id_cliente"] == id_cliente), None)
     if cliente is None:
         return jsonify({"error": "Cliente no encontrado"}), 404
     return jsonify(cliente)
 
 
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "ok"})
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(port=int(os.environ.get("PORT", "5000")))

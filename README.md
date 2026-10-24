@@ -115,3 +115,9 @@ Las pruebas de la API se ejecutan con:
 ```bash
 python -m unittest discover -s ejercicios_api/api_videojuegos/tests -v
 ```
+
+La API de clientes con filtros está en `ejercicios_api/06_filtros/`; su
+configuración de Render está incluida como segundo servicio en `render.yaml`.
+El cliente de ejemplo y el dashboard están en `consumir_primerapi/`. Consulta
+[`consumir_primerapi/README.md`](./consumir_primerapi/README.md) para ejecutar
+ambos y configurar `API_URL` con la URL pública del servicio.
