@@ -49,6 +49,10 @@ documentados en [`consumir_primerapi/README.md`](../consumir_primerapi/README.md
 Para desplegar, publica el repositorio en GitHub y crea los servicios definidos
 en el `render.yaml` de la raíz. Render mostrará la URL pública al terminar;
 configura esa URL en `API_URL` incluyendo `/clientes` antes de ejecutar el cliente.
+La web principal también ofrece la vista interactiva en `/clientes` y reenvía
+sus peticiones a este servicio. En Render, el host se configura automáticamente
+desde el blueprint; localmente inicia esta API en el puerto 5001 antes del
+servidor de videojuegos. Los registros son sintéticos y la vista es pública.
 
 La API final usa las rutas `/api/anios`, `/api/videojuegos?anio=2022`,
 `/api/videojuegos/<id>` y `/videojuegos.csv?anio=2022`. La lista acepta los

@@ -1,6 +1,8 @@
 import csv
 import io
+import json
 import unittest
+from urllib.error import URLError
 from unittest.mock import MagicMock, patch
 
 try:
@@ -55,6 +57,56 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b"Sin fecha confirmada", respuesta.data)
         self.assertIn(b"localStorage.setItem", respuesta.data)
         self.assertIn(b"JSON bajo demanda", respuesta.data)
+        self.assertIn(b"An\xc3\xa1lisis de clientes", respuesta.data)
+
+    def test_pagina_de_analisis_de_clientes_incluye_filtros_y_graficos(self):
+        respuesta = self.cliente.get("/clientes")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
+        self.assertIn(b"Datos sint\xc3\xa9ticos", respuesta.data)
+        self.assertIn(b'id="debt-chart"', respuesta.data)
+        self.assertIn(b'id="health-chart"', respuesta.data)
+        self.assertIn(b'fetch("/api/clientes"', respuesta.data)
+        self.assertIn(b'id="type-filter"', respuesta.data)
+
+    @patch.dict("os.environ", {"API_CLIENTES_URL": "https://clientes.example/clientes"})
+    @patch(f"{app.import_name}.urlopen")
+    def test_api_clientes_reenvia_datos_del_servicio(self, mock_urlopen):
+        cliente = {
+            "id_cliente": "CLI-TEST-1",
+            "informacion_personal": {"nombre": "Ada"},
+        }
+        upstream = MagicMock()
+        upstream.headers.get_content_type.return_value = "application/json"
+        upstream.read.return_value = json.dumps([cliente]).encode()
+        mock_urlopen.return_value.__enter__.return_value = upstream
+
+        respuesta = self.cliente.get("/api/clientes")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.get_json(), [cliente])
+        self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
+        mock_urlopen.assert_called_once()
+        self.assertEqual(
+            mock_urlopen.call_args.args[0].full_url,
+            "https://clientes.example/clientes",
+        )
+
+    @patch.dict("os.environ", {"API_CLIENTES_URL": "https://clientes.example/clientes"})
+    @patch(f"{app.import_name}.urlopen")
+    def test_api_clientes_informa_si_el_servicio_no_esta_disponible(
+        self, mock_urlopen
+    ):
+        mock_urlopen.side_effect = URLError("connection failed")
+
+        respuesta = self.cliente.get("/api/clientes")
+
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertEqual(
+            respuesta.get_json(),
+            {"error": "La API de clientes no está disponible."},
+        )
 
     def test_pagina_gamer_reutiliza_catalogo_sin_cambiar_la_api(self):
         respuesta = self.cliente.get("/gamers")

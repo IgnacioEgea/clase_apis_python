@@ -3,11 +3,12 @@ import gzip
 import html
 import json
 import logging
+import os
 import unicodedata
 from collections.abc import Iterator
 from difflib import SequenceMatcher
 from pathlib import Path
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
@@ -28,6 +29,8 @@ IMAGE_HOSTS = {
 }
 IMAGE_TYPES = {"image/avif", "image/jpeg", "image/png", "image/webp"}
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
+MAX_CLIENT_DATA_BYTES = 2 * 1024 * 1024
+CLIENT_API_TIMEOUT_SECONDS = 10
 logger = logging.getLogger(__name__)
 
 
@@ -193,6 +196,54 @@ def home():
 @app.route("/gamers", methods=["GET"])
 def home_gamers():
     return render_home(gamer_mode=True)
+
+
+@app.route("/clientes", methods=["GET"])
+def pagina_clientes():
+    response = make_response(render_template("clientes.html"))
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.route("/api/clientes", methods=["GET"])
+def api_clientes():
+    url = os.environ.get("API_CLIENTES_URL")
+    if not url:
+        host = os.environ.get("API_CLIENTES_HOST", "127.0.0.1:5001")
+        scheme = "https" if host != "127.0.0.1:5001" else "http"
+        url = f"{scheme}://{host}/clientes"
+
+    upstream_request = Request(url, headers={"Accept": "application/json"})
+    try:
+        with urlopen(
+            upstream_request, timeout=CLIENT_API_TIMEOUT_SECONDS
+        ) as upstream:
+            content_type = upstream.headers.get_content_type()
+            if content_type != "application/json":
+                logger.warning("La API de clientes devolvió %s", content_type)
+                return jsonify({"error": "La API de clientes no devolvió JSON."}), 502
+            raw_data = upstream.read(MAX_CLIENT_DATA_BYTES + 1)
+    except HTTPError as error:
+        logger.warning("La API de clientes respondió HTTP %s", error.code)
+        return jsonify({"error": "La API de clientes rechazó la petición."}), 502
+    except (URLError, TimeoutError, OSError) as error:
+        logger.warning("No se pudo consultar la API de clientes: %s", error)
+        return jsonify({"error": "La API de clientes no está disponible."}), 503
+
+    if len(raw_data) > MAX_CLIENT_DATA_BYTES:
+        return jsonify({"error": "La respuesta de clientes es demasiado grande."}), 502
+    try:
+        clientes = json.loads(raw_data)
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        logger.warning("La API de clientes devolvió JSON inválido: %s", error)
+        return jsonify({"error": "La API de clientes devolvió JSON inválido."}), 502
+    if not isinstance(clientes, list) or not all(
+        isinstance(cliente, dict) for cliente in clientes
+    ):
+        return jsonify({"error": "La API de clientes devolvió un formato inválido."}), 502
+    response = jsonify(clientes)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def render_home(gamer_mode: bool):
