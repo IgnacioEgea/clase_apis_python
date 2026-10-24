@@ -56,6 +56,17 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b"localStorage.setItem", respuesta.data)
         self.assertIn(b"JSON bajo demanda", respuesta.data)
 
+    def test_pagina_gamer_reutiliza_catalogo_sin_cambiar_la_api(self):
+        respuesta = self.cliente.get("/gamers")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn(b'<body class="theme-gamer">', respuesta.data)
+        self.assertIn(b"PS5 Game Hub", respuesta.data)
+        self.assertIn(b'Dise\xc3\xb1o original', respuesta.data)
+        self.assertIn(b"b9ff38", respuesta.data)
+        self.assertIn(b'id="search-form"', respuesta.data)
+        self.assertIn(b'id="game-detail"', respuesta.data)
+
     def test_api_lists_available_year_archives(self):
         respuesta = self.cliente.get("/api/anios")
 

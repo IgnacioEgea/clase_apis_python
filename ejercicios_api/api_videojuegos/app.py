@@ -164,6 +164,15 @@ def imagen_sustitutiva_response(titulo: str) -> Response:
 
 @app.route("/", methods=["GET"])
 def home():
+    return render_home(gamer_mode=False)
+
+
+@app.route("/gamers", methods=["GET"])
+def home_gamers():
+    return render_home(gamer_mode=True)
+
+
+def render_home(gamer_mode: bool):
     archivos = archivos_disponibles()
     anios = sorted(
         (int(clave) for clave in archivos if clave.isdecimal()),
@@ -175,6 +184,7 @@ def home():
             tiene_sin_fecha="sin_fecha" in archivos,
             anio_inicial=anios[-1] if anios else "",
             anio_actual=2026,
+            gamer_mode=gamer_mode,
         )
     )
     response.headers["Cache-Control"] = "no-store"

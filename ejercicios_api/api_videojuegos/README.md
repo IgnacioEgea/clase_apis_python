@@ -13,7 +13,9 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
-Abre <http://127.0.0.1:5000/>.
+Abre <http://127.0.0.1:5000/> para el diseño original o
+<http://127.0.0.1:5000/gamers> para la alternativa con estilo gamer. Ambas
+pantallas usan el mismo catálogo y los mismos endpoints de la API.
 
 ## Desplegar en Render
 

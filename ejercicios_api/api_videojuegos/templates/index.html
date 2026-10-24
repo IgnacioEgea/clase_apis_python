@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#102b3f">
-    <title>Calendario de videojuegos PS5</title>
+    <meta name="theme-color" content="{% if gamer_mode %}#080a12{% else %}#102b3f{% endif %}">
+    <title>{% if gamer_mode %}PS5 Game Hub{% else %}Calendario de videojuegos PS5{% endif %}</title>
     <style>
       :root {
         color-scheme: light;
@@ -327,15 +327,199 @@
         .search-form button { min-height: 42px; }
         .panel { padding: 18px; }
       }
+
+      .theme-gamer {
+        color-scheme: dark;
+        --ink: #f1f2ff;
+        --muted: #a1a8c2;
+        --line: #292d44;
+        --paper: #121526;
+        --canvas: #080a12;
+        --teal: #b9ff38;
+        --teal-dark: #d2ff75;
+        --mint: #242b19;
+        --navy: #0d1020;
+        --shadow: 0 18px 48px rgb(0 0 0 / 35%);
+        background:
+          radial-gradient(ellipse at 50% -18%, rgb(75 57 160 / 28%), transparent 45%),
+          var(--canvas);
+      }
+
+      .theme-gamer .topbar {
+        background: rgb(9 11 21 / 92%);
+        border-bottom: 1px solid #292d44;
+      }
+
+      .theme-gamer .brand-mark {
+        background: #b9ff38;
+        border-radius: 8px;
+        color: #101509;
+      }
+
+      .theme-gamer .topbar-note { color: #b8bed3; }
+      .theme-switch {
+        border: 1px solid #3c4260;
+        border-radius: 7px;
+        color: inherit;
+        font-size: 12px;
+        font-weight: 750;
+        margin-left: 18px;
+        padding: 8px 11px;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .theme-switch:hover { border-color: #b9ff38; color: #b9ff38; }
+
+      .theme-gamer .hero {
+        background:
+          linear-gradient(115deg, rgb(14 17 34 / 96%), rgb(32 20 57 / 94%)),
+          var(--navy);
+        border: 1px solid #42325f;
+        border-radius: 14px;
+        box-shadow: 0 20px 65px rgb(114 55 206 / 16%);
+        position: relative;
+      }
+
+      .theme-gamer .hero::after {
+        border: 1px solid rgb(185 255 56 / 24%);
+        border-radius: 10px;
+        content: "";
+        inset: 9px;
+        pointer-events: none;
+        position: absolute;
+      }
+
+      .theme-gamer .eyebrow { color: #b9ff38; }
+      .theme-gamer h1 { text-transform: uppercase; }
+      .theme-gamer .hero-copy { color: #c4c7da; }
+      .theme-gamer .hero-aside { border-color: #53416d; }
+      .theme-gamer .hero-aside strong { color: #b9ff38; }
+      .theme-gamer .hero-aside span, .theme-gamer .status { color: #c4c7da; }
+      .theme-gamer .button {
+        background: #b9ff38;
+        border-color: #b9ff38;
+        border-radius: 7px;
+        color: #101509;
+        text-transform: uppercase;
+      }
+      .theme-gamer .button:hover { background: #d2ff75; }
+      .theme-gamer .hero .button-secondary {
+        border-color: #71628b;
+        color: #f1f2ff;
+      }
+
+      .theme-gamer .stat,
+      .theme-gamer .panel,
+      .theme-gamer .endpoint,
+      .theme-gamer .game-detail {
+        background: linear-gradient(145deg, #15182a, #101321);
+        border-color: #292d44;
+        border-radius: 11px;
+      }
+      .theme-gamer .stat { border-top: 2px solid #7960bc; }
+      .theme-gamer .stat-value { color: #f1f2ff; }
+      .theme-gamer .section-heading h2,
+      .theme-gamer .panel h2 { color: #f1f2ff; }
+      .theme-gamer .method {
+        background: #242b19;
+        color: #c9ff6a;
+      }
+      .theme-gamer .route,
+      .theme-gamer .history-item button {
+        background: #0d1020;
+        border: 1px solid #292d44;
+        color: #d9c7ff;
+      }
+      .theme-gamer .endpoint-link,
+      .theme-gamer .detail-source { color: #c5a6ff; }
+      .theme-gamer .year-shortcut {
+        background: #171a2b;
+        border-color: #393451;
+        color: #d4c4ff;
+      }
+      .theme-gamer .year-shortcut:hover,
+      .theme-gamer .year-shortcut[aria-pressed="true"] {
+        background: #7250bd;
+        border-color: #a17af5;
+        color: white;
+      }
+      .theme-gamer .history { border-color: #292d44; }
+      .theme-gamer .text-button { color: #c5a6ff; }
+      .theme-gamer .catalog-filters input,
+      .theme-gamer .catalog-filters select,
+      .theme-gamer .search-form input,
+      .theme-gamer .search-form select {
+        background: #0b0e19;
+        border-color: #343950;
+        color: #f1f2ff;
+      }
+      .theme-gamer .catalog-filters input:focus,
+      .theme-gamer .catalog-filters select:focus,
+      .theme-gamer .search-form input:focus,
+      .theme-gamer .search-form select:focus {
+        border-color: #b9ff38;
+        outline-color: rgb(185 255 56 / 18%);
+      }
+      .theme-gamer .catalog-filters button,
+      .theme-gamer .search-form button {
+        background: #b9ff38;
+        border-radius: 7px;
+        color: #101509;
+      }
+      .theme-gamer .catalog-filters button:hover,
+      .theme-gamer .search-form button:hover { background: #d2ff75; }
+      .theme-gamer .advanced-filters { border-color: #292d44; }
+      .theme-gamer .advanced-filters summary { color: #c5a6ff; }
+      .theme-gamer .game-card {
+        background: #111424;
+        border-color: #292d44;
+        border-radius: 7px;
+      }
+      .theme-gamer .game-card:hover,
+      .theme-gamer .game-card[aria-pressed="true"] {
+        background: #202535;
+        border-color: #b9ff38;
+      }
+      .theme-gamer .game-card[aria-pressed="true"] strong { color: #d1ff7b; }
+      .theme-gamer .game-detail { box-shadow: var(--shadow); }
+      .theme-gamer .detail-summary,
+      .theme-gamer .rating-legend-source { color: #c4c7da; }
+      .theme-gamer .rating-donut-track { stroke: #292d44; }
+      .theme-gamer .rating-donut-value { stroke: #b9ff38; }
+      .theme-gamer .rating-donut-text,
+      .theme-gamer .rating-legend-value { fill: #f1f2ff; color: #f1f2ff; }
+      .theme-gamer .ratings-section { border-color: #292d44; }
+      .theme-gamer .game-cover {
+        background: linear-gradient(145deg, #20243a, #111424);
+        border: 1px solid #343950;
+      }
+      .theme-gamer .json-panel,
+      .theme-gamer .example-code { background: #090b14; }
+      .theme-gamer .json-link {
+        background: #b9ff38;
+        color: #101509;
+      }
+      .theme-gamer footer { color: #8e95af; }
+
+      @media (max-width: 520px) {
+        .theme-switch { font-size: 11px; margin-left: 8px; padding: 7px 8px; }
+        .theme-gamer .topbar { padding-left: 12px; padding-right: 12px; }
+        .theme-gamer .topbar-note { display: none; }
+      }
     </style>
   </head>
-  <body>
+  <body class="{% if gamer_mode %}theme-gamer{% endif %}">
     <header class="topbar">
-      <a class="brand" href="{{ url_for('home') }}">
+      <a class="brand" href="{{ url_for('home_gamers' if gamer_mode else 'home') }}">
         <span class="brand-mark" aria-hidden="true">PS5</span>
-        <span>Calendario PS5</span>
+        <span>{% if gamer_mode %}PS5 Game Hub{% else %}Calendario PS5{% endif %}</span>
       </a>
       <span class="topbar-note">Tarea universitaria · Sin fines lucrativos</span>
+      {% if gamer_mode %}
+      <a class="theme-switch" href="{{ url_for('home') }}">Diseño original</a>
+      {% else %}
+      <a class="theme-switch" href="{{ url_for('home_gamers') }}">Modo gamer</a>
+      {% endif %}
     </header>
 
     <main>
