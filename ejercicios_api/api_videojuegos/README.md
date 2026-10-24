@@ -2,7 +2,9 @@
 
 API Flask independiente para consultar un catálogo de juegos de PS5 y PS VR2.
 Los datos están archivados por año en CSV (comprimidos cuando corresponde) y la
-API genera JSON bajo demanda.
+API genera JSON bajo demanda. Al iniciar el servidor, el catálogo se carga una
+vez en memoria para evitar releer los CSV en cada petición. Reinicia el proceso
+para que recoja cambios posteriores en los archivos de datos.
 
 ## Ejecutar
 
@@ -16,6 +18,7 @@ python app.py
 Abre <http://127.0.0.1:5000/> para el diseño original o
 <http://127.0.0.1:5000/gamers> para la alternativa con estilo gamer. Ambas
 pantallas usan el mismo catálogo y los mismos endpoints de la API.
+La instalación solo incluye dependencias necesarias para servir esta API.
 
 ## Desplegar en Render
 

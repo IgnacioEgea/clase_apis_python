@@ -79,6 +79,22 @@ class ApiVideojuegosTests(unittest.TestCase):
             },
         )
 
+    def test_rutas_usan_catalogo_cargado_al_iniciar(self):
+        with patch(
+            f"{app.import_name}.archivos_disponibles",
+            side_effect=AssertionError("No debe redescubrir archivos por petición"),
+        ), patch(
+            f"{app.import_name}.leer_videojuegos",
+            side_effect=AssertionError("No debe releer CSV por petición"),
+        ):
+            anios = self.cliente.get("/api/anios")
+            listado = self.cliente.get("/api/videojuegos?anio=2026")
+            ficha = self.cliente.get("/api/videojuegos/stray")
+
+        self.assertEqual(anios.status_code, 200)
+        self.assertEqual(listado.status_code, 200)
+        self.assertEqual(ficha.status_code, 200)
+
     def test_listado_anual_genera_json_desde_csv(self):
         respuesta = self.cliente.get("/api/videojuegos?anio=2026")
 

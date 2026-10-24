@@ -106,11 +106,9 @@ que incluye fechas regionales, desarrolladores y géneros, pero no resúmenes ni
 portadas para todos los títulos. Se toma la fecha PAL/Europa; cuando falta, NA
 y luego Japón. Wikipedia se distribuye bajo CC BY-SA: conserva la atribución y
 las condiciones de compartir igual al redistribuir los datos. Las listas y
-fechas pueden cambiar. Con el servidor activo, ejecuta el cliente de ejemplo en otra terminal:
-
-```bash
-python ejercicios_api/api_videojuegos/consumir_api.py
-```
+fechas pueden cambiar. Con el servidor activo, consulta la API desde
+`http://127.0.0.1:5000/api/anios` o
+`http://127.0.0.1:5000/api/videojuegos?anio=2026`.
 
 Las pruebas de la API se ejecutan con:
 

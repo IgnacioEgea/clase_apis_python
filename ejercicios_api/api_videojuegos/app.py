@@ -18,6 +18,9 @@ app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data" / "videojuegos"
+ARCHIVOS: dict[str, Path] = {}
+VIDEOJUEGOS_POR_ANIO: dict[str, tuple[dict[str, str], ...]] = {}
+VIDEOJUEGOS_POR_ID: dict[str, dict[str, str]] = {}
 IMAGE_HOSTS = {
     "i.3djuegos.com",
     "image.api.playstation.com",
@@ -43,7 +46,7 @@ def archivos_disponibles() -> dict[str, Path]:
 def archivo_para_anio(anio: str) -> Path | None:
     if anio == "sin-fecha":
         anio = "sin_fecha"
-    return archivos_disponibles().get(anio)
+    return ARCHIVOS.get(anio)
 
 
 def leer_videojuegos(path: Path) -> Iterator[dict[str, str]]:
@@ -52,12 +55,26 @@ def leer_videojuegos(path: Path) -> Iterator[dict[str, str]]:
         yield from csv.DictReader(archivo)
 
 
+def cargar_catalogo() -> None:
+    global ARCHIVOS, VIDEOJUEGOS_POR_ANIO, VIDEOJUEGOS_POR_ID
+    ARCHIVOS = archivos_disponibles()
+    VIDEOJUEGOS_POR_ANIO = {
+        anio: tuple(leer_videojuegos(path))
+        for anio, path in ARCHIVOS.items()
+    }
+    VIDEOJUEGOS_POR_ID = {
+        videojuego["id"]: videojuego
+        for videojuegos in VIDEOJUEGOS_POR_ANIO.values()
+        for videojuego in videojuegos
+        if videojuego.get("id")
+    }
+
+
+cargar_catalogo()
+
+
 def buscar_videojuego(videojuego_id: str) -> dict[str, str] | None:
-    for path in archivos_disponibles().values():
-        for videojuego in leer_videojuegos(path):
-            if videojuego.get("id") == videojuego_id:
-                return videojuego
-    return None
+    return VIDEOJUEGOS_POR_ID.get(videojuego_id)
 
 
 def normalizar_texto(texto: str) -> str:
@@ -102,9 +119,12 @@ def normalizar_categoria(categoria: str) -> str:
 
 
 def filtrar_videojuegos(
-    path: Path, consulta: str, categoria: str, mes: str
+    videojuegos: tuple[dict[str, str], ...],
+    consulta: str,
+    categoria: str,
+    mes: str,
 ) -> Iterator[dict[str, str]]:
-    for videojuego in leer_videojuegos(path):
+    for videojuego in videojuegos:
         if consulta and not coincide_busqueda(videojuego, consulta):
             continue
         if categoria and normalizar_categoria(
@@ -119,11 +139,14 @@ def filtrar_videojuegos(
 
 
 def serializar_videojuegos(
-    path: Path, consulta: str, categoria: str = "", mes: str = ""
+    videojuegos: tuple[dict[str, str], ...],
+    consulta: str,
+    categoria: str = "",
+    mes: str = "",
 ) -> Iterator[str]:
     yield "["
     primero = True
-    for videojuego in filtrar_videojuegos(path, consulta, categoria, mes):
+    for videojuego in filtrar_videojuegos(videojuegos, consulta, categoria, mes):
         if not primero:
             yield ","
         yield json.dumps(videojuego, ensure_ascii=False)
@@ -173,15 +196,14 @@ def home_gamers():
 
 
 def render_home(gamer_mode: bool):
-    archivos = archivos_disponibles()
     anios = sorted(
-        (int(clave) for clave in archivos if clave.isdecimal()),
+        (int(clave) for clave in ARCHIVOS if clave.isdecimal()),
     )
     response = make_response(
         render_template(
             "index.html",
             anios=anios,
-            tiene_sin_fecha="sin_fecha" in archivos,
+            tiene_sin_fecha="sin_fecha" in ARCHIVOS,
             anio_inicial=anios[-1] if anios else "",
             anio_actual=2026,
             gamer_mode=gamer_mode,
@@ -193,13 +215,12 @@ def render_home(gamer_mode: bool):
 
 @app.route("/api/anios", methods=["GET"])
 def obtener_anios():
-    archivos = archivos_disponibles()
     return jsonify(
         {
             "anios": sorted(
-                int(clave) for clave in archivos if clave.isdecimal()
+                int(clave) for clave in ARCHIVOS if clave.isdecimal()
             ),
-            "incluye_sin_fecha": "sin_fecha" in archivos,
+            "incluye_sin_fecha": "sin_fecha" in ARCHIVOS,
         }
     )
 
@@ -219,8 +240,9 @@ def obtener_videojuegos():
             400,
         )
 
-    path = archivo_para_anio(anio)
-    if path is None:
+    clave_anio = "sin_fecha" if anio == "sin-fecha" else anio
+    videojuegos = VIDEOJUEGOS_POR_ANIO.get(clave_anio)
+    if videojuegos is None:
         return jsonify({"error": "No existe un archivo para ese año."}), 404
 
     consulta = request.args.get("q", "").strip()
@@ -231,7 +253,7 @@ def obtener_videojuegos():
     if mes:
         mes = f"{int(mes):02d}"
     return Response(
-        serializar_videojuegos(path, consulta, categoria, mes),
+        serializar_videojuegos(videojuegos, consulta, categoria, mes),
         mimetype="application/json",
     )
 
