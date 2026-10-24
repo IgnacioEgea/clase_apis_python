@@ -8,7 +8,7 @@ from app import app
 class ClientesApiTests(unittest.TestCase):
     def setUp(self):
         self.password_environment = patch.dict(
-            os.environ, {"CLIENTES_PASSWORD": "Nacho"}
+            os.environ, {"CLIENTES_PASSWORD": "test-password"}
         )
         self.password_environment.start()
         self.client = app.test_client()
@@ -29,7 +29,9 @@ class ClientesApiTests(unittest.TestCase):
         self.assertEqual(response.json, {"status": "ok"})
 
     def test_list_clients_and_nested_data(self):
-        response = self.client.get("/clientes", headers={"X-API-Key": "Nacho"})
+        response = self.client.get(
+            "/clientes", headers={"X-API-Key": "test-password"}
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.json), 6)
@@ -38,7 +40,7 @@ class ClientesApiTests(unittest.TestCase):
     def test_filter_clients(self):
         response = self.client.get(
             "/clientes?q=tipo_cliente:empresa",
-            headers={"X-API-Key": "Nacho"},
+            headers={"X-API-Key": "test-password"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -53,7 +55,7 @@ class ClientesApiTests(unittest.TestCase):
     def test_get_client_by_id(self):
         response = self.client.get(
             "/clientes/CLI-2026-123456",
-            headers={"X-API-Key": "Nacho"},
+            headers={"X-API-Key": "test-password"},
         )
 
         self.assertEqual(response.status_code, 200)
@@ -62,7 +64,7 @@ class ClientesApiTests(unittest.TestCase):
     def test_unknown_client_returns_404(self):
         response = self.client.get(
             "/clientes/no-existe",
-            headers={"X-API-Key": "Nacho"},
+            headers={"X-API-Key": "test-password"},
         )
 
         self.assertEqual(response.status_code, 404)

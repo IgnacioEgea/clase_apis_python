@@ -10,7 +10,14 @@ REQUEST_TIMEOUT_SECONDS = 15
 
 
 def obtener_clientes(url: str = API_URL) -> list[dict[str, Any]]:
-    response = requests.get(url, timeout=REQUEST_TIMEOUT_SECONDS)
+    api_key = os.environ.get("CLIENTES_PASSWORD")
+    if not api_key:
+        raise ValueError("Define CLIENTES_PASSWORD para consultar la API protegida.")
+    response = requests.get(
+        url,
+        headers={"X-API-Key": api_key},
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
     response.raise_for_status()
     raw_data = response.json()
     if not isinstance(raw_data, list) or not all(
@@ -71,7 +78,7 @@ def procesar_clientes(raw_data: list[dict[str, Any]]) -> pd.DataFrame:
 def main() -> None:
     try:
         clientes = procesar_clientes(obtener_clientes())
-    except requests.exceptions.RequestException as error:
+    except (requests.exceptions.RequestException, ValueError) as error:
         raise SystemExit(f"Error al consultar la API de clientes: {error}") from error
 
     columnas = [

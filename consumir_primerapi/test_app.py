@@ -1,9 +1,32 @@
+import os
 import unittest
+from unittest.mock import MagicMock, patch
 
-from app import procesar_clientes
+from app import obtener_clientes, procesar_clientes
 
 
 class ProcesarClientesTests(unittest.TestCase):
+    @patch.dict(os.environ, {"CLIENTES_PASSWORD": "test-password"})
+    @patch("app.requests.get")
+    def test_obtener_clientes_envia_clave_por_encabezado(self, mock_get):
+        response = MagicMock()
+        response.json.return_value = []
+        mock_get.return_value = response
+
+        self.assertEqual(obtener_clientes("https://api.example/clientes"), [])
+
+        mock_get.assert_called_once_with(
+            "https://api.example/clientes",
+            headers={"X-API-Key": "test-password"},
+            timeout=15,
+        )
+        response.raise_for_status.assert_called_once()
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_obtener_clientes_requiere_clave(self):
+        with self.assertRaisesRegex(ValueError, "CLIENTES_PASSWORD"):
+            obtener_clientes("https://api.example/clientes")
+
     def test_normalizes_and_calculates_indicators(self):
         raw_data = [
             {

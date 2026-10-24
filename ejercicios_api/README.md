@@ -38,7 +38,9 @@ python ejercicios_api/02_consumir_api/consumir_api.py
 ```
 
 La API de clientes carga sus datos JSON al iniciar y expone `/clientes`,
-`/clientes/<id_cliente>` y `/health`. Sus pruebas se ejecutan desde la raíz con:
+`/clientes/<id_cliente>` y `/health`. Las rutas de datos requieren el encabezado
+`X-API-Key` cuyo valor es `CLIENTES_PASSWORD`; `/health` queda disponible para
+el chequeo del servicio. Sus pruebas se ejecutan desde la raíz con:
 
 ```bash
 python -m unittest discover -s ejercicios_api/06_filtros -p 'test_*.py' -v
@@ -53,9 +55,10 @@ La web principal también ofrece la vista interactiva en `/clientes` y reenvía
 sus peticiones a este servicio. En Render, el host se configura automáticamente
 desde el blueprint; localmente inicia esta API en el puerto 5001 antes del
 servidor de videojuegos. El acceso al dashboard y a sus datos requiere iniciar
-sesión; configura `CLIENTES_PASSWORD` con `Nacho` en ambos servicios de Render
-(el servidor web y la API de clientes). Configura además `FLASK_SECRET_KEY` con
-un secreto aleatorio solo en el servidor web. Los registros son sintéticos.
+sesión; configura el mismo valor privado de `CLIENTES_PASSWORD` en ambos
+servicios de Render (el servidor web y la API de clientes). Configura además
+`FLASK_SECRET_KEY` con un secreto aleatorio solo en el servidor web. Los
+registros son sintéticos.
 
 La API final usa las rutas `/api/anios`, `/api/videojuegos?anio=2022`,
 `/api/videojuegos/<id>` y `/videojuegos.csv?anio=2022`. La lista acepta los

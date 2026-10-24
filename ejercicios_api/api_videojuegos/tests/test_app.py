@@ -16,7 +16,7 @@ except ModuleNotFoundError:
 class ApiVideojuegosTests(unittest.TestCase):
     def setUp(self):
         self.password_environment = patch.dict(
-            os.environ, {"CLIENTES_PASSWORD": "Nacho"}
+            os.environ, {"CLIENTES_PASSWORD": "test-password"}
         )
         self.password_environment.start()
         self.cliente = app.test_client()
@@ -24,7 +24,7 @@ class ApiVideojuegosTests(unittest.TestCase):
     def tearDown(self):
         self.password_environment.stop()
 
-    def iniciar_sesion_clientes(self, password="Nacho"):
+    def iniciar_sesion_clientes(self, password="test-password"):
         pagina = self.cliente.get("/clientes")
         token = re.search(
             rb'name="csrf_token" value="([^"]+)"', pagina.data
@@ -151,7 +151,7 @@ class ApiVideojuegosTests(unittest.TestCase):
         )
         self.assertEqual(
             mock_urlopen.call_args.args[0].get_header("X-api-key"),
-            "Nacho",
+            "test-password",
         )
 
     @patch.dict("os.environ", {"API_CLIENTES_URL": "https://clientes.example/clientes"})

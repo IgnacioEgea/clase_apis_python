@@ -67,9 +67,10 @@ La web también incluye el análisis interactivo de clientes en
 que documenta y enlaza el endpoint JSON `/api/clientes` (también protegido por
 sesión). En Render, el servicio web enlaza
 automáticamente la API de clientes definida en `render.yaml`. Para ejecutarlo
-en local, inicia primero esa API con `PORT=5001 python
-ejercicios_api/06_filtros/app.py` y después inicia el servidor web; ambos
-servicios usan datos sintéticos.
+en local, inicia ambos procesos configurando la misma variable
+`CLIENTES_PASSWORD` con la contraseña elegida: la API de clientes en el puerto
+5001 y el servidor web con `API_CLIENTES_HOST=127.0.0.1:5001` y un
+`FLASK_SECRET_KEY` aleatorio. Ambos servicios usan datos sintéticos.
 
 Abre `http://127.0.0.1:5000/` para ver la portada. El catálogo importa la lista de juegos nativos de PS5 de Wikipedia y la lista
 de PS VR2 (1.128 y 438 registros en la última actualización), incluye juegos
