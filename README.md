@@ -63,10 +63,12 @@ python ejercicios_api/api_videojuegos/app.py
 ```
 
 La web también incluye el análisis interactivo de clientes en
-`/clientes`. En Render, el servicio web enlaza automáticamente la API de
-clientes definida en `render.yaml`. Para ejecutarlo en local, inicia primero
-esa API con `PORT=5001 python ejercicios_api/06_filtros/app.py` y después inicia
-el servidor web; ambos servicios usan datos sintéticos.
+`/clientes`, con el botón «Datos para el desarrollador» que documenta y enlaza
+el endpoint JSON `/api/clientes`. En Render, el servicio web enlaza
+automáticamente la API de clientes definida en `render.yaml`. Para ejecutarlo
+en local, inicia primero esa API con `PORT=5001 python
+ejercicios_api/06_filtros/app.py` y después inicia el servidor web; ambos
+servicios usan datos sintéticos.
 
 Abre `http://127.0.0.1:5000/` para ver la portada. El catálogo importa la lista de juegos nativos de PS5 de Wikipedia y la lista
 de PS VR2 (1.128 y 438 registros en la última actualización), incluye juegos

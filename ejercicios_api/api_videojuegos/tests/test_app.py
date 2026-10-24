@@ -69,6 +69,12 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b'id="health-chart"', respuesta.data)
         self.assertIn(b'fetch("/api/clientes"', respuesta.data)
         self.assertIn(b'id="type-filter"', respuesta.data)
+        self.assertIn(b'href="#developer-data"', respuesta.data)
+        self.assertIn(b'id="developer-data"', respuesta.data)
+        self.assertIn(b'id="endpoint-url"', respuesta.data)
+        self.assertIn(b'id="copy-endpoint"', respuesta.data)
+        self.assertIn(b"https://tu-dominio/api/clientes", respuesta.data)
+        self.assertIn(b"response.raise_for_status()", respuesta.data)
 
     @patch.dict("os.environ", {"API_CLIENTES_URL": "https://clientes.example/clientes"})
     @patch(f"{app.import_name}.urlopen")

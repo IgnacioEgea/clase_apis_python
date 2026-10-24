@@ -86,7 +86,22 @@
       }
       h1, h2, h3, p { margin-top: 0; }
       h1 { font-size: clamp(30px, 5vw, 48px); letter-spacing: -.045em; line-height: 1.08; margin-bottom: 12px; }
-      .hero p:last-child { color: #d2e0e3; margin: 0; max-width: 700px; }
+      .hero > p:not(.eyebrow) { color: #d2e0e3; margin: 0; max-width: 700px; }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+      .hero-button {
+        background: #b6eee0;
+        border: 1px solid #b6eee0;
+        border-radius: 8px;
+        color: #123b43;
+        display: inline-flex;
+        font-size: 13px;
+        font-weight: 750;
+        padding: 10px 14px;
+        text-decoration: none;
+      }
+      .hero-button:hover { background: #d3f6ec; }
+      .hero-button-secondary { background: transparent; border-color: #72949b; color: white; }
+      .hero-button-secondary:hover { background: rgb(255 255 255 / 8%); }
       .notice {
         background: #fff8e8;
         border: 1px solid #f0dfb3;
@@ -142,10 +157,23 @@
       .error.visible { display: block; }
       .loading { color: var(--muted); font-size: 13px; padding: 20px 0; }
       .footnote { color: var(--muted); font-size: 11px; margin: 14px 2px 0; }
+      #developer-data { margin-top: 16px; scroll-margin-top: 20px; }
+      .developer-header { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+      .developer-endpoint { align-items: center; background: #122e3e; border-radius: 8px; color: #d9f4e9; display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; padding: 12px; }
+      .developer-endpoint code { flex: 1; font-size: 13px; overflow-wrap: anywhere; }
+      .http-method { background: #b6eee0; border-radius: 5px; color: #123b43; font-size: 10px; font-weight: 850; padding: 4px 7px; }
+      .developer-link, .copy-button { background: var(--mint); border: 1px solid #b8ded5; border-radius: 7px; color: #05635e; cursor: pointer; font: inherit; font-size: 11px; font-weight: 750; padding: 7px 10px; text-decoration: none; }
+      .developer-link:hover, .copy-button:hover { background: #d3f6ec; }
+      .developer-grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+      .developer-grid h3 { font-size: 13px; margin: 6px 0; }
+      .developer-grid p { color: var(--muted); font-size: 11px; margin: 0 0 8px; }
+      .code-block { background: #122e3e; border-radius: 9px; color: #d9f4e9; display: block; font: 11px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow: auto; padding: 13px; white-space: pre; }
+      .developer-footnote { color: var(--muted); font-size: 11px; margin: 14px 0 0; }
       footer { color: var(--muted); font-size: 11px; padding: 0 0 12px; text-align: center; }
       @media (max-width: 760px) {
         main { padding: 22px 16px 44px; }
         .grid { grid-template-columns: 1fr; }
+        .developer-grid { grid-template-columns: 1fr; }
         .stats { gap: 9px; }
         .stat { padding: 12px; }
         .stat-value { font-size: 22px; }
@@ -155,6 +183,7 @@
         .brand { font-size: 12px; gap: 7px; }
         .brand-mark { height: 30px; width: 30px; }
         .topbar-link { font-size: 10px; padding: 7px; }
+        .hero-button { flex: 1 1 auto; justify-content: center; }
         main { padding-left: 12px; padding-right: 12px; }
         .stats { grid-template-columns: 1fr; }
         .toolbar { align-items: stretch; }
@@ -175,6 +204,10 @@
         <p class="eyebrow">API REST · Datos de ejemplo</p>
         <h1>Una mirada clara<br>al perfil de clientes.</h1>
         <p>La web consume el endpoint de clientes, convierte la respuesta JSON en información comparable y actualiza la tabla y los gráficos al filtrar.</p>
+        <div class="hero-actions">
+          <a class="hero-button" href="#developer-data">Datos para el desarrollador <span aria-hidden="true">&nbsp;↓</span></a>
+          <a class="hero-button hero-button-secondary" href="#analysis">Ver el dashboard <span aria-hidden="true">&nbsp;↓</span></a>
+        </div>
       </section>
       <p class="notice"><strong>Datos sintéticos:</strong> estos registros se han creado para fines didácticos. No representan personas, empresas ni historiales financieros reales.</p>
       <div class="error" id="error" role="alert"></div>
@@ -215,6 +248,59 @@
           </table>
         </div>
         <p class="footnote">Este ratio es el indicador simplificado del ejercicio; al usar el número de préstamos (no el importe adeudado), no es un ratio financiero estándar.</p>
+      </section>
+      <section class="panel" id="developer-data" aria-labelledby="developer-title">
+        <div class="developer-header">
+          <div>
+            <h2 id="developer-title">Datos para el desarrollador</h2>
+            <p class="panel-intro">Consulta el endpoint JSON que alimenta este dashboard e intégralo en otra aplicación.</p>
+          </div>
+        </div>
+        <div class="developer-endpoint">
+          <span class="http-method">GET</span>
+          <code id="endpoint-url" data-endpoint="{{ url_for('api_clientes') }}">{{ url_for('api_clientes') }}</code>
+          <a class="developer-link" href="{{ url_for('api_clientes') }}" target="_blank" rel="noopener">Abrir JSON</a>
+          <button class="copy-button" id="copy-endpoint" type="button">Copiar ruta</button>
+        </div>
+        <div class="developer-grid">
+          <div>
+            <h3>Ejemplo con curl</h3>
+            <p>Al ejecutarlo desde otra máquina, reemplaza la ruta relativa por el dominio público de esta web.</p>
+            <code class="code-block" id="curl-example">curl -H "Accept: application/json" https://tu-dominio/api/clientes</code>
+            <h3>Ejemplo en Python</h3>
+            <p>El mismo endpoint se puede consumir con la librería <code>requests</code>.</p>
+            <pre class="code-block">import requests
+
+url = "https://tu-dominio/api/clientes"
+response = requests.get(url, timeout=15)
+response.raise_for_status()
+clientes = response.json()
+print(clientes)</pre>
+          </div>
+          <div>
+            <h3>Estructura de la respuesta</h3>
+            <p>La API devuelve una lista JSON de clientes. Este fragmento muestra los campos usados en el análisis:</p>
+            <pre class="code-block">[
+  {
+    "id_cliente": "CLI-2026-894021",
+    "informacion_personal": {
+      "nombre": "Ana",
+      "apellido": "Gomez",
+      "pais_residencia": "ES"
+    },
+    "productos_activos": {
+      "prestamos_vigentes": 0
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 45000,
+      "score_crediticio_interno": 740,
+      "tipo_cliente": "Particular"
+    }
+  }
+]</pre>
+          </div>
+        </div>
+        <p class="developer-footnote">El dashboard carga la respuesta completa y filtra en el navegador. El endpoint no recibe ni almacena datos enviados desde el navegador. Los registros son sintéticos y se ofrecen únicamente con fines educativos.</p>
       </section>
       <footer>Los datos se solicitan a la API de clientes cada vez que se abre esta página. El navegador no guarda el historial financiero.</footer>
     </main>
@@ -407,6 +493,15 @@
       }
       search.addEventListener("input", update);
       typeFilter.addEventListener("change", update);
+      document.getElementById("copy-endpoint").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        try {
+          await navigator.clipboard.writeText(new URL("/api/clientes", window.location.origin).toString());
+          button.textContent = "Ruta copiada";
+        } catch {
+          button.textContent = "Copia /api/clientes";
+        }
+      });
       loadClients();
     </script>
   </body>
