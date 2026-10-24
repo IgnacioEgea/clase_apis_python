@@ -15,6 +15,23 @@ python app.py
 
 Abre <http://127.0.0.1:5000/>.
 
+## Desplegar en Render
+
+La configuración raíz `render.yaml` establece `ejercicios_api/api_videojuegos`
+como `rootDir`, instala solo las dependencias de esta API y comprueba el servicio
+en `/api/anios`. Si configuras el servicio manualmente en Render:
+
+- **Root Directory:** `ejercicios_api/api_videojuegos`
+- **Build Command:** `pip install -r requirements.txt`
+- **Start Command:**
+
+```bash
+gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+```
+
+Gunicorn sirve la aplicación Flask `app` definida en `app.py`. El proceso usa
+el puerto que Render proporciona por la variable `PORT`.
+
 ## Consultas
 
 - `GET /api/anios`: años disponibles.
