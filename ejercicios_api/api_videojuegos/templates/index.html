@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="{% if gamer_mode %}#080a12{% else %}#102b3f{% endif %}">
-    <title>{% if gamer_mode %}PS5 Game Hub{% else %}Calendario de videojuegos PS5{% endif %}</title>
+    <title>{% if gamer_mode %}Calendario PS5 · Modo oscuro{% else %}Calendario de videojuegos PS5{% endif %}</title>
     <style>
       :root {
         color-scheme: light;
@@ -512,14 +512,14 @@
     <header class="topbar">
       <a class="brand" href="{{ url_for('home_gamers' if gamer_mode else 'home') }}">
         <span class="brand-mark" aria-hidden="true">PS5</span>
-        <span>{% if gamer_mode %}PS5 Game Hub{% else %}Calendario PS5{% endif %}</span>
+        <span>{% if gamer_mode %}Calendario PS5{% else %}Calendario PS5{% endif %}</span>
       </a>
       <a class="theme-switch" href="{{ url_for('pagina_clientes') }}">Análisis de clientes</a>
       <span class="topbar-note">Tarea universitaria · Sin fines lucrativos</span>
       {% if gamer_mode %}
       <a class="theme-switch" href="{{ url_for('home') }}">Diseño original</a>
       {% else %}
-      <a class="theme-switch" href="{{ url_for('home_gamers') }}">Modo gamer</a>
+      <a class="theme-switch" href="{{ url_for('home_modo_oscuro') }}">Modo oscuro</a>
       {% endif %}
     </header>
 

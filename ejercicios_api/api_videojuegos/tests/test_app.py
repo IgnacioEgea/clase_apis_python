@@ -1,6 +1,8 @@
 import csv
 import io
 import json
+import os
+import re
 import unittest
 from urllib.error import URLError
 from unittest.mock import MagicMock, patch
@@ -13,7 +15,24 @@ except ModuleNotFoundError:
 
 class ApiVideojuegosTests(unittest.TestCase):
     def setUp(self):
+        self.password_environment = patch.dict(
+            os.environ, {"CLIENTES_PASSWORD": "Nacho"}
+        )
+        self.password_environment.start()
         self.cliente = app.test_client()
+
+    def tearDown(self):
+        self.password_environment.stop()
+
+    def iniciar_sesion_clientes(self, password="Nacho"):
+        pagina = self.cliente.get("/clientes")
+        token = re.search(
+            rb'name="csrf_token" value="([^"]+)"', pagina.data
+        ).group(1).decode()
+        return self.cliente.post(
+            "/clientes/login",
+            data={"csrf_token": token, "password": password},
+        )
 
     def test_home_explains_calendar_and_api(self):
         respuesta = self.cliente.get("/")
@@ -64,6 +83,15 @@ class ApiVideojuegosTests(unittest.TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
+        self.assertIn(b'name="password"', respuesta.data)
+        self.assertNotIn(b'id="debt-chart"', respuesta.data)
+
+        login = self.iniciar_sesion_clientes()
+        self.assertEqual(login.status_code, 302)
+        respuesta = self.cliente.get("/clientes")
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
         self.assertIn(b"Datos sint\xc3\xa9ticos", respuesta.data)
         self.assertIn(b'id="debt-chart"', respuesta.data)
         self.assertIn(b'id="health-chart"', respuesta.data)
@@ -75,6 +103,28 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b'id="copy-endpoint"', respuesta.data)
         self.assertIn(b"https://tu-dominio/api/clientes", respuesta.data)
         self.assertIn(b"response.raise_for_status()", respuesta.data)
+        self.assertIn(b"Cerrar sesi\xc3\xb3n", respuesta.data)
+
+    def test_acceso_a_clientes_rechaza_contrasena_incorrecta(self):
+        respuesta = self.iniciar_sesion_clientes(password="incorrecta")
+
+        self.assertEqual(respuesta.status_code, 401)
+        self.assertIn(b"Contrase\xc3\xb1a incorrecta", respuesta.data)
+
+    def test_api_clientes_exige_sesion_y_cerrar_sesion_la_revoca(self):
+        sin_sesion = self.cliente.get("/api/clientes")
+        self.assertEqual(sin_sesion.status_code, 401)
+
+        self.assertEqual(self.iniciar_sesion_clientes().status_code, 302)
+        token = re.search(
+            rb'name="csrf_token" value="([^"]+)"',
+            self.cliente.get("/clientes").data,
+        ).group(1).decode()
+        logout = self.cliente.post("/clientes/logout", data={"csrf_token": token})
+
+        self.assertEqual(logout.status_code, 302)
+        respuesta = self.cliente.get("/api/clientes")
+        self.assertEqual(respuesta.status_code, 401)
 
     @patch.dict("os.environ", {"API_CLIENTES_URL": "https://clientes.example/clientes"})
     @patch(f"{app.import_name}.urlopen")
@@ -88,6 +138,7 @@ class ApiVideojuegosTests(unittest.TestCase):
         upstream.read.return_value = json.dumps([cliente]).encode()
         mock_urlopen.return_value.__enter__.return_value = upstream
 
+        self.assertEqual(self.iniciar_sesion_clientes().status_code, 302)
         respuesta = self.cliente.get("/api/clientes")
 
         self.assertEqual(respuesta.status_code, 200)
@@ -98,6 +149,10 @@ class ApiVideojuegosTests(unittest.TestCase):
             mock_urlopen.call_args.args[0].full_url,
             "https://clientes.example/clientes",
         )
+        self.assertEqual(
+            mock_urlopen.call_args.args[0].get_header("X-api-key"),
+            "Nacho",
+        )
 
     @patch.dict("os.environ", {"API_CLIENTES_URL": "https://clientes.example/clientes"})
     @patch(f"{app.import_name}.urlopen")
@@ -106,6 +161,7 @@ class ApiVideojuegosTests(unittest.TestCase):
     ):
         mock_urlopen.side_effect = URLError("connection failed")
 
+        self.assertEqual(self.iniciar_sesion_clientes().status_code, 302)
         respuesta = self.cliente.get("/api/clientes")
 
         self.assertEqual(respuesta.status_code, 503)
@@ -114,13 +170,14 @@ class ApiVideojuegosTests(unittest.TestCase):
             {"error": "La API de clientes no está disponible."},
         )
 
-    def test_pagina_gamer_reutiliza_catalogo_sin_cambiar_la_api(self):
-        respuesta = self.cliente.get("/gamers")
+    def test_pagina_modo_oscuro_reutiliza_catalogo_sin_cambiar_la_api(self):
+        respuesta = self.cliente.get("/modo-oscuro")
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertIn(b'<body class="theme-gamer">', respuesta.data)
-        self.assertIn(b"PS5 Game Hub", respuesta.data)
+        self.assertIn(b"Modo oscuro", respuesta.data)
         self.assertIn(b'Dise\xc3\xb1o original', respuesta.data)
+        self.assertNotIn(b"Modo gamer", respuesta.data)
         self.assertIn(b"b9ff38", respuesta.data)
         self.assertIn(b'id="search-form"', respuesta.data)
         self.assertIn(b'id="game-detail"', respuesta.data)

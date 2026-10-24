@@ -65,6 +65,9 @@
         white-space: nowrap;
       }
       .topbar-link:hover { background: rgb(255 255 255 / 8%); }
+      .logout-form { margin: 0; }
+      .logout-button { background: transparent; border: 1px solid #72949b; border-radius: 7px; color: #f5fbfa; cursor: pointer; font: inherit; font-size: 12px; font-weight: 750; padding: 8px 11px; }
+      .logout-button:hover { background: rgb(255 255 255 / 8%); }
       main { margin: 0 auto; max-width: 1120px; padding: 38px 24px 68px; }
       .hero {
         background:
@@ -197,6 +200,10 @@
         <span class="brand-mark" aria-hidden="true">API</span>
         <span>Datos y servicios</span>
       </a>
+      <form class="logout-form" method="post" action="{{ url_for('cerrar_sesion_clientes') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="logout-button" type="submit">Cerrar sesión</button>
+      </form>
       <a class="topbar-link" href="{{ url_for('home') }}">Volver al calendario PS5</a>
     </header>
     <main>
@@ -265,7 +272,7 @@
         <div class="developer-grid">
           <div>
             <h3>Ejemplo con curl</h3>
-            <p>Al ejecutarlo desde otra máquina, reemplaza la ruta relativa por el dominio público de esta web.</p>
+            <p>El endpoint requiere la sesión abierta en esta web. Sin la cookie de sesión responderá HTTP 401.</p>
             <code class="code-block" id="curl-example">curl -H "Accept: application/json" https://tu-dominio/api/clientes</code>
             <h3>Ejemplo en Python</h3>
             <p>El mismo endpoint se puede consumir con la librería <code>requests</code>.</p>

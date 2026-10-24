@@ -1,4 +1,5 @@
 import json
+import hmac
 import os
 from pathlib import Path
 from typing import Any
@@ -46,8 +47,22 @@ def coincide_filtro(datos: Any, campo_buscado: str, valor_buscado: str) -> bool:
     return False
 
 
+def verificar_api_key():
+    configured_password = os.environ.get("CLIENTES_PASSWORD")
+    if not configured_password:
+        return jsonify({"error": "El acceso a la API no está configurado."}), 503
+    if not hmac.compare_digest(
+        request.headers.get("X-API-Key", ""), configured_password
+    ):
+        return jsonify({"error": "No autorizado."}), 401
+    return None
+
+
 @app.route("/clientes", methods=["GET"])
 def obtener_clientes():
+    error = verificar_api_key()
+    if error:
+        return error
     consulta = request.args.get("q")
     if consulta is None:
         return jsonify(CLIENTES)
@@ -71,6 +86,9 @@ def obtener_clientes():
 
 @app.route("/clientes/<id_cliente>", methods=["GET"])
 def obtener_cliente_id(id_cliente: str):
+    error = verificar_api_key()
+    if error:
+        return error
     cliente = next((c for c in CLIENTES if c["id_cliente"] == id_cliente), None)
     if cliente is None:
         return jsonify({"error": "Cliente no encontrado"}), 404

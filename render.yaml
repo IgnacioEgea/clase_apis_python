@@ -6,6 +6,9 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4
     healthCheckPath: /health
+    envVars:
+      - key: CLIENTES_PASSWORD
+        sync: false
   - type: web
     name: calendario-ps5
     runtime: python
@@ -19,3 +22,9 @@ services:
           type: web
           name: api-clientes
           property: host
+      - key: CLIENTES_PASSWORD
+        sync: false
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: SESSION_COOKIE_SECURE
+        value: "true"

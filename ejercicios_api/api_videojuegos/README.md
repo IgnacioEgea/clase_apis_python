@@ -16,9 +16,18 @@ python app.py
 ```
 
 Abre <http://127.0.0.1:5000/> para el diseño original o
-<http://127.0.0.1:5000/gamers> para la alternativa con estilo gamer. Ambas
+<http://127.0.0.1:5000/modo-oscuro> para la alternativa en modo oscuro. Ambas
 pantallas usan el mismo catálogo y los mismos endpoints de la API.
 La instalación solo incluye dependencias necesarias para servir esta API.
+
+El análisis de clientes está en `/clientes` y requiere contraseña. Define
+`CLIENTES_PASSWORD=Nacho` tanto en el servidor de videojuegos como en el servicio
+`api-clientes`, y configura `FLASK_SECRET_KEY` con un secreto aleatorio en el
+servidor web. El blueprint raíz de Render marca estas variables como manuales
+para que no queden guardadas en el repositorio. En local, inicia la API de
+clientes con `PORT=5001 CLIENTES_PASSWORD=Nacho python
+../06_filtros/app.py`; inicia el servidor web con las mismas variables
+`CLIENTES_PASSWORD=Nacho` y una `FLASK_SECRET_KEY` aleatoria.
 
 ## Desplegar en Render
 

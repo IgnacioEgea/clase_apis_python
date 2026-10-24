@@ -1,9 +1,11 @@
 import csv
 import gzip
+import hmac
 import html
 import json
 import logging
 import os
+import secrets
 import unicodedata
 from collections.abc import Iterator
 from difflib import SequenceMatcher
@@ -12,11 +14,28 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
-from flask import Flask, Response, jsonify, make_response, render_template, request, send_file
+from flask import (
+    Flask,
+    Response,
+    jsonify,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
 
 
 app = Flask(__name__)
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.secret_key = os.environ.get("FLASK_SECRET_KEY") or secrets.token_hex(32)
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get(
+    "SESSION_COOKIE_SECURE", "false"
+).casefold() in {"1", "true", "yes"}
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data" / "videojuegos"
 ARCHIVOS: dict[str, Path] = {}
@@ -198,22 +217,102 @@ def home_gamers():
     return render_home(gamer_mode=True)
 
 
+@app.route("/modo-oscuro", methods=["GET"])
+def home_modo_oscuro():
+    return render_home(gamer_mode=True)
+
+
 @app.route("/clientes", methods=["GET"])
 def pagina_clientes():
-    response = make_response(render_template("clientes.html"))
+    csrf_token = session.setdefault("csrf_token", secrets.token_urlsafe(32))
+    if not session.get("clientes_authenticated"):
+        response = make_response(
+            render_template("clientes_login.html", csrf_token=csrf_token)
+        )
+    else:
+        response = make_response(
+            render_template("clientes.html", csrf_token=csrf_token)
+        )
     response.headers["Cache-Control"] = "no-store"
     return response
 
 
+@app.route("/clientes/login", methods=["POST"])
+def iniciar_sesion_clientes():
+    csrf_token = session.get("csrf_token", "")
+    submitted_token = request.form.get("csrf_token", "")
+    if not csrf_token or not hmac.compare_digest(csrf_token, submitted_token):
+        csrf_token = secrets.token_urlsafe(32)
+        session["csrf_token"] = csrf_token
+        return (
+            render_template(
+                "clientes_login.html",
+                csrf_token=csrf_token,
+                error="La sesión del formulario caducó. Recarga la página e inténtalo de nuevo.",
+            ),
+            400,
+        )
+
+    configured_password = os.environ.get("CLIENTES_PASSWORD")
+    if not configured_password:
+        return (
+            render_template(
+                "clientes_login.html",
+                csrf_token=csrf_token,
+                error="El acceso todavía no está configurado en el servidor.",
+            ),
+            503,
+        )
+    if not hmac.compare_digest(
+        request.form.get("password", ""), configured_password
+    ):
+        return (
+            render_template(
+                "clientes_login.html",
+                csrf_token=csrf_token,
+                error="Contraseña incorrecta. Inténtalo de nuevo.",
+            ),
+            401,
+        )
+
+    session.clear()
+    session["clientes_authenticated"] = True
+    session["csrf_token"] = secrets.token_urlsafe(32)
+    return redirect(url_for("pagina_clientes"))
+
+
+@app.route("/clientes/logout", methods=["POST"])
+def cerrar_sesion_clientes():
+    csrf_token = session.get("csrf_token", "")
+    submitted_token = request.form.get("csrf_token", "")
+    if (
+        not session.get("clientes_authenticated")
+        or not csrf_token
+        or not hmac.compare_digest(csrf_token, submitted_token)
+    ):
+        return jsonify({"error": "No autorizado."}), 401
+    session.clear()
+    return redirect(url_for("pagina_clientes"))
+
+
 @app.route("/api/clientes", methods=["GET"])
 def api_clientes():
+    if not session.get("clientes_authenticated"):
+        return jsonify({"error": "Inicia sesión para consultar los clientes."}), 401
+
     url = os.environ.get("API_CLIENTES_URL")
     if not url:
         host = os.environ.get("API_CLIENTES_HOST", "127.0.0.1:5001")
         scheme = "https" if host != "127.0.0.1:5001" else "http"
         url = f"{scheme}://{host}/clientes"
 
-    upstream_request = Request(url, headers={"Accept": "application/json"})
+    api_key = os.environ.get("CLIENTES_PASSWORD")
+    if not api_key:
+        return jsonify({"error": "El acceso a la API no está configurado."}), 503
+    upstream_request = Request(
+        url,
+        headers={"Accept": "application/json", "X-API-Key": api_key},
+    )
     try:
         with urlopen(
             upstream_request, timeout=CLIENT_API_TIMEOUT_SECONDS

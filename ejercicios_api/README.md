@@ -52,7 +52,10 @@ configura esa URL en `API_URL` incluyendo `/clientes` antes de ejecutar el clien
 La web principal también ofrece la vista interactiva en `/clientes` y reenvía
 sus peticiones a este servicio. En Render, el host se configura automáticamente
 desde el blueprint; localmente inicia esta API en el puerto 5001 antes del
-servidor de videojuegos. Los registros son sintéticos y la vista es pública.
+servidor de videojuegos. El acceso al dashboard y a sus datos requiere iniciar
+sesión; configura `CLIENTES_PASSWORD` con `Nacho` en ambos servicios de Render
+(el servidor web y la API de clientes). Configura además `FLASK_SECRET_KEY` con
+un secreto aleatorio solo en el servidor web. Los registros son sintéticos.
 
 La API final usa las rutas `/api/anios`, `/api/videojuegos?anio=2022`,
 `/api/videojuegos/<id>` y `/videojuegos.csv?anio=2022`. La lista acepta los
