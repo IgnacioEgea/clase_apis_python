@@ -101,6 +101,10 @@ class ApiVideojuegosTests(unittest.TestCase):
         )
         self.assertIn(b'class="footer-format"', respuesta.data)
         self.assertIn(b"Cambiar formato", respuesta.data)
+        for formato in (b"automatico", b"movil", b"tablet", b"escritorio", b"portatil", b"panoramica"):
+            self.assertIn(b'data-layout-format="' + formato + b'"', respuesta.data)
+        self.assertIn(b"videojuegos-api-layout-format", respuesta.data)
+        self.assertIn(b"text-align: center;", respuesta.data)
         self.assertIn(b"@media (max-width: 900px)", respuesta.data)
         self.assertIn(b"@media (max-width: 520px)", respuesta.data)
 
@@ -207,7 +211,7 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b"b9ff38", respuesta.data)
         self.assertIn(b"position: sticky;", respuesta.data)
         self.assertIn(b"color: #f1f2ff;", respuesta.data)
-        self.assertIn(b'aria-current="page">Modo oscuro</a>', respuesta.data)
+        self.assertIn(b'data-layout-format="movil">M\xc3\xb3vil</button>', respuesta.data)
         self.assertIn(b'id="favorites-list"', respuesta.data)
         self.assertIn(b'class="footer-format"', respuesta.data)
         self.assertIn(b'<nav class="topbar-actions" aria-label="Navegaci\xc3\xb3n principal">', respuesta.data)

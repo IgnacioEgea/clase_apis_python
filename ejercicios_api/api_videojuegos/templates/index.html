@@ -372,16 +372,19 @@
       .json-output:empty::before { color: #b9d0d1; content: "El JSON solicitado aparecerá aquí."; white-space: normal; }
       .search-status { color: var(--muted); font-size: 12px; margin: 10px 0 0; min-height: 1.5em; }
 
-      footer { align-items: center; border-top: 1px solid var(--line); color: var(--muted); display: flex; font-size: 12px; gap: 24px; justify-content: space-between; margin-top: 24px; padding-top: 18px; text-align: left; }
+      footer { align-items: stretch; border-top: 1px solid var(--line); color: var(--muted); display: flex; flex-direction: column; font-size: 12px; gap: 14px; margin-top: 24px; padding-top: 18px; text-align: center; }
       .footer-copy p { margin: 5px 0 0; }
-      .footer-format { flex: 0 0 auto; position: relative; }
+      .footer-copy { text-align: center; }
+      .footer-format { align-self: flex-end; position: relative; }
       .footer-format summary { align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); cursor: pointer; display: inline-flex; font-size: 12px; font-weight: 750; list-style: none; min-height: 40px; padding: 0 12px; }
       .footer-format summary::-webkit-details-marker { display: none; }
       .footer-format summary::after { content: "⌄"; font-size: 15px; margin-left: 9px; }
       .footer-format summary:focus-visible { outline: 3px solid rgb(8 126 120 / 30%); outline-offset: 2px; }
       .format-options { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; bottom: calc(100% + 8px); box-shadow: var(--shadow); display: grid; gap: 4px; min-width: 180px; padding: 6px; position: absolute; right: 0; z-index: 5; }
-      .format-options a { border-radius: 6px; color: var(--ink); font-size: 12px; padding: 9px 10px; text-decoration: none; }
-      .format-options a:hover, .format-options a:focus-visible { background: var(--mint); outline: none; }
+      .format-options button { background: transparent; border: 0; border-radius: 6px; color: var(--ink); cursor: pointer; font: inherit; font-size: 12px; padding: 9px 10px; text-align: left; }
+      .format-options button:hover, .format-options button:focus-visible,
+      .format-options button[aria-pressed="true"] { background: var(--mint); outline: none; }
+      .format-status { display: block; min-height: 1px; }
 
       @media (max-width: 900px) {
         .catalog-results.has-selection { grid-template-columns: minmax(0, 1fr); }
@@ -432,8 +435,6 @@
         .search-form button { min-height: 42px; }
         .panel { padding: 18px; }
         .catalog-results.has-selection .game-list { grid-template-columns: 1fr; }
-        footer { align-items: stretch; flex-direction: column; gap: 14px; }
-        .footer-format { align-self: flex-end; }
         .format-options { right: 0; }
       }
 
@@ -642,12 +643,66 @@
       .theme-gamer footer { color: #8e95af; }
       .theme-gamer .footer-format summary { background: #111424; border-color: #343950; color: #f1f2ff; }
       .theme-gamer .format-options { background: #111424; border-color: #343950; }
-      .theme-gamer .format-options a { color: #f1f2ff; }
-      .theme-gamer .format-options a:hover,
-      .theme-gamer .format-options a:focus-visible { background: #20243a; }
+      .theme-gamer .format-options button { color: #f1f2ff; }
+      .theme-gamer .format-options button:hover,
+      .theme-gamer .format-options button:focus-visible,
+      .theme-gamer .format-options button[aria-pressed="true"] { background: #20243a; }
 
       @media (max-width: 520px) {
         .topbar-inner { padding-left: 12px; padding-right: 12px; }
+      }
+
+      body[data-format="movil"] { margin-inline: auto; max-width: 430px; width: 100%; }
+      body[data-format="movil"] .topbar-inner {
+        align-items: stretch;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px 16px;
+      }
+      body[data-format="movil"] .topbar-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+      }
+      body[data-format="movil"] .nav-link { font-size: 12px; min-height: 38px; padding: 0 9px; }
+      body[data-format="movil"] main { padding: 22px 16px 48px; }
+      body[data-format="movil"] .hero { border-radius: 16px; gap: 24px; grid-template-columns: 1fr; padding: 27px 21px; }
+      body[data-format="movil"] .hero-aside { border-left: 0; border-top: 1px solid rgb(221 245 238 / 25%); padding: 20px 0 0; }
+      body[data-format="movil"] .hero .button { width: 100%; }
+      body[data-format="movil"] .guide-steps,
+      body[data-format="movil"] .endpoint-grid,
+      body[data-format="movil"] .stats { grid-template-columns: 1fr; }
+      body[data-format="movil"] .endpoint { min-height: auto; }
+      body[data-format="movil"] .primary-search { grid-template-columns: minmax(0, 1fr) auto; }
+      body[data-format="movil"] .primary-search .filter-field:nth-child(2) { grid-column: 1 / -1; grid-row: 1; }
+      body[data-format="movil"] .advanced-filter-grid { grid-template-columns: 1fr; }
+      body[data-format="movil"] .catalog-results.has-selection { grid-template-columns: 1fr; }
+      body[data-format="movil"] .catalog-results.has-selection .game-list,
+      body[data-format="movil"] .catalog-results:not(.has-selection) .game-list { grid-template-columns: 1fr; }
+      body[data-format="movil"] .game-detail { grid-template-columns: 1fr; }
+      body[data-format="movil"] .detail-meta { grid-template-columns: 1fr; }
+      body[data-format="movil"] footer { align-items: stretch; flex-direction: column; gap: 14px; }
+      body[data-format="movil"] .footer-format { align-self: flex-end; }
+      body[data-format="tablet"] main { max-width: 900px; }
+      body[data-format="tablet"] .topbar-inner { max-width: 900px; }
+      body[data-format="escritorio"] main { max-width: 1200px; }
+      body[data-format="escritorio"] .topbar-inner { max-width: 1200px; }
+      body[data-format="portatil"] main { max-width: 1360px; }
+      body[data-format="portatil"] .topbar-inner { max-width: 1360px; }
+      body[data-format="panoramica"] main { max-width: 1680px; }
+      body[data-format="panoramica"] .topbar-inner { max-width: 1680px; }
+
+      @media (min-width: 761px) {
+        body[data-format="tablet"] .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        body[data-format="tablet"] .endpoint-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        body[data-format="tablet"] .catalog-results.has-selection { grid-template-columns: minmax(0, 1fr); }
+        body[data-format="tablet"] .catalog-results.has-selection .game-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 420px; }
+        body[data-format="panoramica"] .hero { grid-template-columns: minmax(0, 1.65fr) minmax(220px, .55fr); }
+        body[data-format="panoramica"] .endpoint-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+      @media (max-width: 520px) {
+        body[data-format="movil"] .catalog-results:not(.has-selection) .game-list,
+        body[data-format="movil"] .catalog-results.has-selection .game-list { grid-template-columns: 1fr; }
       }
     </style>
   </head>
@@ -934,14 +989,14 @@
         <details class="footer-format">
           <summary>Cambiar formato</summary>
           <nav class="format-options" aria-label="Formatos disponibles">
-            {% if gamer_mode %}
-            <a href="{{ url_for('home') }}">Diseño original</a>
-            <a href="{{ url_for('home_modo_oscuro') }}" aria-current="page">Modo oscuro</a>
-            {% else %}
-            <a href="{{ url_for('home') }}" aria-current="page">Diseño original</a>
-            <a href="{{ url_for('home_modo_oscuro') }}">Modo oscuro</a>
-            {% endif %}
+            <button type="button" data-layout-format="automatico">Adaptado a la pantalla</button>
+            <button type="button" data-layout-format="movil">Móvil</button>
+            <button type="button" data-layout-format="tablet">Tablet</button>
+            <button type="button" data-layout-format="escritorio">Escritorio</button>
+            <button type="button" data-layout-format="portatil">Portátil</button>
+            <button type="button" data-layout-format="panoramica">Panorámica</button>
           </nav>
+          <span class="visually-hidden" id="format-status" role="status" aria-live="polite"></span>
         </details>
       </footer>
     </main>
@@ -949,6 +1004,7 @@
       (() => {
         const historyKey = "videojuegos-api-search-history";
         const favoritesKey = "videojuegos-api-favorites";
+        const formatKey = "videojuegos-api-layout-format";
         const historyLimit = 8;
         const categoryCache = new Map();
         const form = document.getElementById("search-form");
@@ -981,6 +1037,18 @@
         const favoritesEmpty = document.getElementById("favorites-empty");
         const favoritesMessage = document.getElementById("favorites-message");
         const favoriteToggle = document.getElementById("favorite-toggle");
+        const footerFormat = document.querySelector(".footer-format");
+        const formatSummary = footerFormat.querySelector("summary");
+        const formatStatus = document.getElementById("format-status");
+        const formatButtons = [...footerFormat.querySelectorAll("[data-layout-format]")];
+        const formatNames = {
+          automatico: "Adaptado a la pantalla",
+          movil: "Móvil",
+          tablet: "Tablet",
+          escritorio: "Escritorio",
+          portatil: "Portátil",
+          panoramica: "Panorámica",
+        };
         let history = [];
         let favorites = [];
         let currentGames = [];
@@ -988,6 +1056,47 @@
         let selectedGameId = "";
         let selectionVersion = 0;
         let catalogRequestVersion = 0;
+
+        function applyLayoutFormat(format, save = false) {
+          const selectedFormat = Object.hasOwn(formatNames, format)
+            ? format
+            : "automatico";
+          if (selectedFormat === "automatico") {
+            document.body.removeAttribute("data-format");
+          } else {
+            document.body.dataset.format = selectedFormat;
+          }
+          formatButtons.forEach((button) => {
+            button.setAttribute(
+              "aria-pressed",
+              String(button.dataset.layoutFormat === selectedFormat)
+            );
+          });
+          formatSummary.textContent =
+            `Cambiar formato · ${formatNames[selectedFormat]}`;
+
+          if (save) {
+            try {
+              if (selectedFormat === "automatico") {
+                localStorage.removeItem(formatKey);
+              } else {
+                localStorage.setItem(formatKey, selectedFormat);
+              }
+              formatStatus.textContent =
+                `Formato ${formatNames[selectedFormat]} aplicado.`;
+            } catch {
+              formatStatus.textContent =
+                `Formato ${formatNames[selectedFormat]} aplicado solo hasta cerrar esta página.`;
+            }
+          }
+        }
+
+        formatButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            applyLayoutFormat(button.dataset.layoutFormat, true);
+            footerFormat.open = false;
+          });
+        });
 
         coverZoom.addEventListener("click", () => {
           if (!detailImage.currentSrc) return;
@@ -1646,6 +1755,13 @@
         favorites = readFavorites();
         renderFavorites();
         updateFavoriteToggle();
+        try {
+          applyLayoutFormat(localStorage.getItem(formatKey) || "automatico");
+        } catch {
+          applyLayoutFormat("automatico");
+          formatStatus.textContent =
+            "No se pudo leer el formato guardado; se usa el diseño adaptado a la pantalla.";
+        }
       })();
     </script>
   </body>
