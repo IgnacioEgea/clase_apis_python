@@ -40,6 +40,9 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
         self.assertIn(b"Calendario PS5", respuesta.data)
+        self.assertIn(b"position: sticky;", respuesta.data)
+        self.assertIn(b'<nav class="topbar-actions" aria-label="Navegaci\xc3\xb3n principal">', respuesta.data)
+        self.assertIn(b'class="nav-link nav-link-primary"', respuesta.data)
         self.assertNotIn(b"class=\"topbar-note\"", respuesta.data)
         footer = respuesta.data.split(b"<footer>", 1)[1].split(b"</footer>", 1)[0]
         self.assertIn(b"Tarea universitaria \xc2\xb7 Sin fines lucrativos", footer)
@@ -184,6 +187,8 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b'Dise\xc3\xb1o original', respuesta.data)
         self.assertNotIn(b"Modo gamer", respuesta.data)
         self.assertIn(b"b9ff38", respuesta.data)
+        self.assertIn(b"position: sticky;", respuesta.data)
+        self.assertIn(b'<nav class="topbar-actions" aria-label="Navegaci\xc3\xb3n principal">', respuesta.data)
         self.assertIn(b'id="search-form"', respuesta.data)
         self.assertIn(b'id="game-detail"', respuesta.data)
 

@@ -33,12 +33,67 @@
       a { color: inherit; }
 
       .topbar {
+        background: rgb(16 43 63 / 97%);
+        border-bottom: 1px solid rgb(255 255 255 / 10%);
+        box-shadow: 0 8px 24px rgb(10 27 39 / 12%);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+      }
+
+      .topbar-inner {
         align-items: center;
-        background: var(--navy);
-        color: #f5fbfa;
         display: flex;
+        gap: 24px;
         justify-content: space-between;
-        padding: 18px max(24px, calc((100vw - 1120px) / 2));
+        margin: 0 auto;
+        max-width: 1120px;
+        min-height: 68px;
+        padding: 0 24px;
+      }
+
+      .topbar-actions {
+        align-items: center;
+        display: flex;
+        gap: 10px;
+      }
+
+      .nav-link {
+        align-items: center;
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 9px;
+        color: #f5fbfa;
+        display: inline-flex;
+        font-size: 13px;
+        font-weight: 700;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0 14px;
+        text-decoration: none;
+        transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+        white-space: nowrap;
+      }
+
+      .nav-link:hover {
+        background: rgb(255 255 255 / 8%);
+        border-color: rgb(255 255 255 / 38%);
+      }
+
+      .nav-link:focus-visible {
+        outline: 3px solid #a8e6d7;
+        outline-offset: 3px;
+      }
+
+      .nav-link-primary {
+        background: #b6eee0;
+        border-color: #b6eee0;
+        color: #123b43;
+      }
+
+      .nav-link-primary:hover {
+        background: #d2f6ec;
+        border-color: #d2f6ec;
+        color: #123b43;
       }
 
       .brand {
@@ -309,7 +364,14 @@
       }
 
       @media (max-width: 520px) {
-        .topbar { padding: 14px 18px; }
+        .topbar-inner {
+          align-items: stretch;
+          flex-wrap: wrap;
+          gap: 10px;
+          padding: 12px 16px;
+        }
+        .topbar-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+        .nav-link { font-size: 12px; min-height: 38px; padding: 0 9px; }
         main { padding: 22px 16px 48px; }
         .hero { border-radius: 16px; padding: 27px 21px; }
         .hero .button { width: 100%; }
@@ -345,24 +407,37 @@
         border-bottom: 1px solid #292d44;
       }
 
+      .theme-gamer .nav-link {
+        border-color: #3c4260;
+      }
+
+      .theme-gamer .nav-link:hover {
+        background: #20243a;
+        border-color: #b9ff38;
+        color: #d1ff7b;
+      }
+
+      .theme-gamer .nav-link:focus-visible {
+        outline-color: #b9ff38;
+      }
+
+      .theme-gamer .nav-link-primary {
+        background: #b9ff38;
+        border-color: #b9ff38;
+        color: #101509;
+      }
+
+      .theme-gamer .nav-link-primary:hover {
+        background: #d1ff7b;
+        border-color: #d1ff7b;
+        color: #101509;
+      }
+
       .theme-gamer .brand-mark {
         background: #b9ff38;
         border-radius: 8px;
         color: #101509;
       }
-
-      .theme-switch {
-        border: 1px solid #3c4260;
-        border-radius: 7px;
-        color: inherit;
-        font-size: 12px;
-        font-weight: 750;
-        margin-left: 18px;
-        padding: 8px 11px;
-        text-decoration: none;
-        white-space: nowrap;
-      }
-      .theme-switch:hover { border-color: #b9ff38; color: #b9ff38; }
 
       .theme-gamer .hero {
         background:
@@ -496,23 +571,26 @@
       .theme-gamer footer { color: #8e95af; }
 
       @media (max-width: 520px) {
-        .theme-switch { font-size: 11px; margin-left: 8px; padding: 7px 8px; }
-        .theme-gamer .topbar { padding-left: 12px; padding-right: 12px; }
+        .topbar-inner { padding-left: 12px; padding-right: 12px; }
       }
     </style>
   </head>
   <body class="{% if gamer_mode %}theme-gamer{% endif %}">
     <header class="topbar">
-      <a class="brand" href="{{ url_for('home_gamers' if gamer_mode else 'home') }}">
-        <span class="brand-mark" aria-hidden="true">PS5</span>
-        <span>{% if gamer_mode %}Calendario PS5{% else %}Calendario PS5{% endif %}</span>
-      </a>
-      <a class="theme-switch" href="{{ url_for('pagina_clientes') }}">Análisis de clientes</a>
-      {% if gamer_mode %}
-      <a class="theme-switch" href="{{ url_for('home') }}">Diseño original</a>
-      {% else %}
-      <a class="theme-switch" href="{{ url_for('home_modo_oscuro') }}">Modo oscuro</a>
-      {% endif %}
+      <div class="topbar-inner">
+        <a class="brand" href="{{ url_for('home_gamers' if gamer_mode else 'home') }}">
+          <span class="brand-mark" aria-hidden="true">PS5</span>
+          <span>Calendario PS5</span>
+        </a>
+        <nav class="topbar-actions" aria-label="Navegación principal">
+          <a class="nav-link" href="{{ url_for('pagina_clientes') }}">Análisis de clientes</a>
+          {% if gamer_mode %}
+          <a class="nav-link nav-link-primary" href="{{ url_for('home') }}">Diseño original</a>
+          {% else %}
+          <a class="nav-link nav-link-primary" href="{{ url_for('home_modo_oscuro') }}">Modo oscuro</a>
+          {% endif %}
+        </nav>
+      </div>
     </header>
 
     <main>
