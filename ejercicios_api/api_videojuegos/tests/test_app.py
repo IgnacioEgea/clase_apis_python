@@ -40,8 +40,13 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
         self.assertIn(b"Calendario PS5", respuesta.data)
-        self.assertIn(b"Tarea universitaria", respuesta.data)
-        self.assertIn(b"Sin fines lucrativos", respuesta.data)
+        self.assertNotIn(b"class=\"topbar-note\"", respuesta.data)
+        footer = respuesta.data.split(b"<footer>", 1)[1].split(b"</footer>", 1)[0]
+        self.assertIn(b"Tarea universitaria \xc2\xb7 Sin fines lucrativos", footer)
+        self.assertIn(
+            b"\xc2\xa9 Ignacio Egea 2026 \xc2\xb7 Todos los derechos reservados.",
+            footer,
+        )
         self.assertIn(b"2026", respuesta.data)
         self.assertIn(b"2027", respuesta.data)
         self.assertIn(b"2021", respuesta.data)
