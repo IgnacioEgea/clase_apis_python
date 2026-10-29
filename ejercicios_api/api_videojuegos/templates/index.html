@@ -104,6 +104,7 @@
         gap: 11px;
         letter-spacing: .01em;
         text-decoration: none;
+        color: #f5fbfa;
       }
 
       .brand-mark {
@@ -232,6 +233,16 @@
       .history-item button { background: #f3f7f7; border: 1px solid var(--line); border-radius: 999px; color: #29515a; cursor: pointer; font: inherit; font-size: 12px; padding: 6px 10px; }
       .history-item button:hover { background: var(--mint); border-color: #a9dacf; }
       .history-empty, .history-message { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+      .favorites { border-top: 1px solid var(--line); margin-top: 22px; padding-top: 20px; }
+      .favorites-heading { align-items: center; display: flex; justify-content: space-between; }
+      .favorites-heading h3 { font-size: 14px; margin: 0; }
+      .favorites-empty, .favorites-message { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+      .favorites-list { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); list-style: none; margin: 12px 0 0; padding: 0; }
+      .favorite-item { align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 9px; display: flex; gap: 6px; min-width: 0; padding: 5px; }
+      .favorite-open, .favorite-remove { background: transparent; border: 0; color: var(--teal-dark); cursor: pointer; font: inherit; min-height: 34px; }
+      .favorite-open { flex: 1; font-size: 12px; font-weight: 700; min-width: 0; overflow-wrap: anywhere; text-align: left; }
+      .favorite-remove { border-radius: 6px; flex: 0 0 34px; font-size: 18px; }
+      .favorite-open:hover, .favorite-remove:hover { background: var(--mint); }
       .year-shortcuts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
       .year-shortcut { background: var(--mint); border: 1px solid #b8ded5; border-radius: 999px; color: var(--teal-dark); cursor: pointer; font: inherit; font-size: 12px; font-weight: 750; padding: 7px 13px; }
       .year-shortcut:hover, .year-shortcut[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: white; }
@@ -291,6 +302,10 @@
       .detail-meta dt { color: var(--muted); font-size: 11px; font-weight: 700; }
       .detail-meta dd { font-size: 13px; margin: 2px 0 0; overflow-wrap: anywhere; }
       .detail-source { color: var(--teal-dark); font-size: 12px; font-weight: 700; margin-top: 18px; text-underline-offset: 3px; }
+      .detail-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 18px; }
+      .detail-actions .detail-source { margin-top: 0; }
+      .favorite-toggle { align-items: center; background: var(--mint); border: 1px solid #b8ded5; border-radius: 8px; color: var(--teal-dark); cursor: pointer; display: inline-flex; font: inherit; font-size: 12px; font-weight: 750; justify-content: center; min-height: 38px; padding: 0 12px; }
+      .favorite-toggle:hover, .favorite-toggle[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: white; }
       .ratings-section { border-top: 1px solid var(--line); margin-top: 24px; padding-top: 18px; }
       .ratings-heading { align-items: baseline; display: flex; flex-wrap: wrap; gap: 6px 10px; justify-content: space-between; margin-bottom: 12px; }
       .ratings-heading h4 { font-size: 14px; margin: 0; }
@@ -357,13 +372,27 @@
       .json-output:empty::before { color: #b9d0d1; content: "El JSON solicitado aparecerá aquí."; white-space: normal; }
       .search-status { color: var(--muted); font-size: 12px; margin: 10px 0 0; min-height: 1.5em; }
 
-      footer { color: var(--muted); font-size: 12px; margin-top: 24px; text-align: center; }
-      footer p { margin: 5px 0 0; }
+      footer { align-items: center; border-top: 1px solid var(--line); color: var(--muted); display: flex; font-size: 12px; gap: 24px; justify-content: space-between; margin-top: 24px; padding-top: 18px; text-align: left; }
+      .footer-copy p { margin: 5px 0 0; }
+      .footer-format { flex: 0 0 auto; position: relative; }
+      .footer-format summary { align-items: center; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); cursor: pointer; display: inline-flex; font-size: 12px; font-weight: 750; list-style: none; min-height: 40px; padding: 0 12px; }
+      .footer-format summary::-webkit-details-marker { display: none; }
+      .footer-format summary::after { content: "⌄"; font-size: 15px; margin-left: 9px; }
+      .footer-format summary:focus-visible { outline: 3px solid rgb(8 126 120 / 30%); outline-offset: 2px; }
+      .format-options { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; bottom: calc(100% + 8px); box-shadow: var(--shadow); display: grid; gap: 4px; min-width: 180px; padding: 6px; position: absolute; right: 0; z-index: 5; }
+      .format-options a { border-radius: 6px; color: var(--ink); font-size: 12px; padding: 9px 10px; text-decoration: none; }
+      .format-options a:hover, .format-options a:focus-visible { background: var(--mint); outline: none; }
 
+      @media (max-width: 900px) {
+        .catalog-results.has-selection { grid-template-columns: minmax(0, 1fr); }
+        .catalog-results.has-selection .game-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 420px; }
+        .endpoint-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
       @media (max-width: 760px) {
         main { padding-top: 30px; }
         .hero { gap: 24px; grid-template-columns: 1fr; padding: 32px 26px; }
         .guide-steps { grid-template-columns: 1fr; }
+        .endpoint-grid { grid-template-columns: 1fr; }
         .hero-aside { border-left: 0; border-top: 1px solid rgb(221 245 238 / 25%); padding: 20px 0 0; }
         .hero-aside strong { font-size: 38px; }
         .status { margin-top: 12px; }
@@ -377,6 +406,7 @@
         .catalog-results:not(.has-selection) .game-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .game-list { max-height: 340px; }
         .game-detail { grid-template-columns: 1fr; }
+        .detail-meta { grid-template-columns: 1fr; }
         .game-cover { grid-row: 1; max-height: 290px; }
         .rating-donut { flex-basis: 126px; height: 126px; width: 126px; }
       }
@@ -401,6 +431,10 @@
         .search-form:not(.catalog-filters) { align-items: stretch; flex-direction: column; }
         .search-form button { min-height: 42px; }
         .panel { padding: 18px; }
+        .catalog-results.has-selection .game-list { grid-template-columns: 1fr; }
+        footer { align-items: stretch; flex-direction: column; gap: 14px; }
+        .footer-format { align-self: flex-end; }
+        .format-options { right: 0; }
       }
 
       .theme-gamer {
@@ -424,6 +458,7 @@
         background: rgb(9 11 21 / 92%);
         border-bottom: 1px solid #292d44;
       }
+      .theme-gamer .brand { color: #f1f2ff; }
 
       .theme-gamer .nav-link {
         border-color: #3c4260;
@@ -541,6 +576,15 @@
       }
       .theme-gamer .history { border-color: #292d44; }
       .theme-gamer .text-button { color: #c5a6ff; }
+      .theme-gamer .favorites { border-color: #292d44; }
+      .theme-gamer .favorite-item { background: #111424; border-color: #292d44; }
+      .theme-gamer .favorite-open,
+      .theme-gamer .favorite-remove { color: #c5a6ff; }
+      .theme-gamer .favorite-open:hover,
+      .theme-gamer .favorite-remove:hover { background: #20243a; }
+      .theme-gamer .favorite-toggle { background: #242b19; border-color: #46512a; color: #c9ff6a; }
+      .theme-gamer .favorite-toggle:hover,
+      .theme-gamer .favorite-toggle[aria-pressed="true"] { background: #b9ff38; border-color: #b9ff38; color: #101509; }
       .theme-gamer .catalog-filters input,
       .theme-gamer .catalog-filters select,
       .theme-gamer .search-form input,
@@ -596,6 +640,11 @@
         color: #101509;
       }
       .theme-gamer footer { color: #8e95af; }
+      .theme-gamer .footer-format summary { background: #111424; border-color: #343950; color: #f1f2ff; }
+      .theme-gamer .format-options { background: #111424; border-color: #343950; }
+      .theme-gamer .format-options a { color: #f1f2ff; }
+      .theme-gamer .format-options a:hover,
+      .theme-gamer .format-options a:focus-visible { background: #20243a; }
 
       @media (max-width: 520px) {
         .topbar-inner { padding-left: 12px; padding-right: 12px; }
@@ -744,6 +793,14 @@
           <ul class="history-list" id="history-list" aria-label="Búsquedas recientes"></ul>
           <p class="history-message" id="history-message" role="status"></p>
         </section>
+        <section class="favorites" aria-labelledby="favorites-title">
+          <div class="favorites-heading">
+            <h3 id="favorites-title">Mis videojuegos favoritos</h3>
+          </div>
+          <p class="favorites-empty" id="favorites-empty">Añade juegos desde sus fichas para guardarlos aquí.</p>
+          <ul class="favorites-list" id="favorites-list" aria-label="Videojuegos favoritos"></ul>
+          <p class="favorites-message" id="favorites-message" role="status"></p>
+        </section>
       </section>
 
       <section class="panel calendar-search" aria-labelledby="calendar-search-title">
@@ -836,7 +893,10 @@
                 <div class="ratings-chart" id="ratings-chart" role="region" aria-label="Gráfico de puntuaciones publicadas"></div>
                 <p class="ratings-note">Las fuentes usan escalas y criterios distintos. Solo se muestran puntuaciones verificadas; una fuente sin dato no significa una nota de cero.</p>
               </section>
-              <a class="detail-source" id="detail-source" target="_blank" rel="noopener">Consultar fuente ↗</a>
+              <div class="detail-actions">
+                <button class="favorite-toggle" id="favorite-toggle" type="button" aria-pressed="false">☆ Añadir a favoritos</button>
+                <a class="detail-source" id="detail-source" target="_blank" rel="noopener">Consultar fuente ↗</a>
+              </div>
             </div>
             <figure class="game-cover" id="game-cover" hidden>
               <button class="cover-zoom" id="cover-zoom" type="button" aria-label="Ampliar portada">
@@ -866,14 +926,29 @@
       </section>
 
       <footer>
-        <p>Catálogo basado en las listas de juegos nativos de PS5 y PS VR2 de Wikipedia (CC BY-SA) · Fechas sujetas a cambios · Consulta la fuente de cada ficha.</p>
-        <p>Tarea universitaria · Sin fines lucrativos</p>
-        <p>© Ignacio Egea 2026 · Todos los derechos reservados.</p>
+        <div class="footer-copy">
+          <p>Catálogo basado en las listas de juegos nativos de PS5 y PS VR2 de Wikipedia (CC BY-SA) · Fechas sujetas a cambios · Consulta la fuente de cada ficha.</p>
+          <p>Tarea universitaria · Sin fines lucrativos</p>
+          <p>© Ignacio Egea 2026 · Todos los derechos reservados.</p>
+        </div>
+        <details class="footer-format">
+          <summary>Cambiar formato</summary>
+          <nav class="format-options" aria-label="Formatos disponibles">
+            {% if gamer_mode %}
+            <a href="{{ url_for('home') }}">Diseño original</a>
+            <a href="{{ url_for('home_modo_oscuro') }}" aria-current="page">Modo oscuro</a>
+            {% else %}
+            <a href="{{ url_for('home') }}" aria-current="page">Diseño original</a>
+            <a href="{{ url_for('home_modo_oscuro') }}">Modo oscuro</a>
+            {% endif %}
+          </nav>
+        </details>
       </footer>
     </main>
     <script>
       (() => {
         const historyKey = "videojuegos-api-search-history";
+        const favoritesKey = "videojuegos-api-favorites";
         const historyLimit = 8;
         const categoryCache = new Map();
         const form = document.getElementById("search-form");
@@ -902,8 +977,14 @@
         const historyList = document.getElementById("history-list");
         const historyEmpty = document.getElementById("history-empty");
         const historyMessage = document.getElementById("history-message");
+        const favoritesList = document.getElementById("favorites-list");
+        const favoritesEmpty = document.getElementById("favorites-empty");
+        const favoritesMessage = document.getElementById("favorites-message");
+        const favoriteToggle = document.getElementById("favorite-toggle");
         let history = [];
+        let favorites = [];
         let currentGames = [];
+        let selectedGame = null;
         let selectedGameId = "";
         let selectionVersion = 0;
         let catalogRequestVersion = 0;
@@ -986,6 +1067,137 @@
             historyMessage.textContent = "El juego quedará en el historial hasta cerrar esta página.";
           }
         }
+
+        function readFavorites() {
+          try {
+            const saved = JSON.parse(localStorage.getItem(favoritesKey) || "[]");
+            return Array.isArray(saved)
+              ? saved.filter((item) =>
+                item && typeof item.id === "string"
+                && typeof item.titulo === "string"
+                && typeof item.anio === "string"
+              ).map((item) => ({
+                id: item.id,
+                titulo: item.titulo,
+                anio: item.anio,
+              })).filter((item, index, entries) =>
+                entries.findIndex((entry) => entry.id === item.id) === index
+              )
+              : [];
+          } catch {
+            favoritesMessage.textContent = "No se pudieron leer los favoritos guardados en este navegador.";
+            return [];
+          }
+        }
+
+        function updateFavoriteToggle() {
+          const isFavorite = Boolean(
+            selectedGame && favorites.some((item) => item.id === selectedGame.id)
+          );
+          favoriteToggle.setAttribute("aria-pressed", String(isFavorite));
+          favoriteToggle.textContent = isFavorite
+            ? "★ En favoritos"
+            : "☆ Añadir a favoritos";
+        }
+
+        function persistFavorites(message) {
+          renderFavorites();
+          updateFavoriteToggle();
+          try {
+            localStorage.setItem(favoritesKey, JSON.stringify(favorites));
+            favoritesMessage.textContent = message;
+          } catch {
+            favoritesMessage.textContent =
+              "No se pudieron guardar los cambios; estarán disponibles hasta cerrar esta página.";
+          }
+        }
+
+        function renderFavorites() {
+          favoritesList.replaceChildren();
+          favoritesEmpty.hidden = favorites.length > 0;
+
+          favorites.forEach((entry) => {
+            const item = document.createElement("li");
+            const openButton = document.createElement("button");
+            const removeButton = document.createElement("button");
+            item.className = "favorite-item";
+            openButton.className = "favorite-open";
+            openButton.type = "button";
+            openButton.textContent = `${entry.titulo} · ${entry.anio}`;
+            openButton.setAttribute("aria-label", `Abrir ${entry.titulo}, ${entry.anio}`);
+            openButton.addEventListener("click", () => openFavorite(entry));
+            removeButton.className = "favorite-remove";
+            removeButton.type = "button";
+            removeButton.textContent = "×";
+            removeButton.setAttribute("aria-label", `Quitar ${entry.titulo} de favoritos`);
+            removeButton.addEventListener("click", () => {
+              favorites = favorites.filter((favorite) => favorite.id !== entry.id);
+              persistFavorites(`${entry.titulo} se quitó de favoritos.`);
+            });
+            item.append(openButton, removeButton);
+            favoritesList.append(item);
+          });
+        }
+
+        async function openFavorite(entry) {
+          const requestVersion = ++catalogRequestVersion;
+          status.textContent = `Abriendo ${entry.titulo} desde favoritos…`;
+          submitButton.disabled = true;
+          submitButton.textContent = "Abriendo…";
+          yearSelect.value = entry.anio;
+          input.value = entry.titulo;
+          categorySelect.value = "";
+          monthSelect.value = "";
+          updateActiveFilters();
+
+          try {
+            const categories = await loadCategories(entry.anio);
+            if (requestVersion !== catalogRequestVersion) return;
+            renderCategories(categories);
+            const game = await fetchJson(
+              `/api/videojuegos/${encodeURIComponent(entry.id)}`
+            );
+            if (requestVersion !== catalogRequestVersion) return;
+            if (!game || game.id !== entry.id) {
+              throw new Error("No se encontró el videojuego guardado en favoritos.");
+            }
+            renderGames([game]);
+            const gameButton = gameList.querySelector(".game-card");
+            if (!gameButton) {
+              throw new Error("No se pudo mostrar el videojuego guardado en favoritos.");
+            }
+            selectGame(game, gameButton, entry.anio);
+            favoritesMessage.textContent = "";
+          } catch (error) {
+            if (requestVersion !== catalogRequestVersion) return;
+            status.textContent =
+              error.message || `No se pudo abrir ${entry.titulo} desde favoritos.`;
+          } finally {
+            if (requestVersion === catalogRequestVersion) {
+              submitButton.disabled = false;
+              submitButton.textContent = "Buscar juegos";
+            }
+          }
+        }
+
+        favoriteToggle.addEventListener("click", () => {
+          if (!selectedGame) return;
+          const isFavorite = favorites.some((item) => item.id === selectedGame.id);
+          if (isFavorite) {
+            favorites = favorites.filter((item) => item.id !== selectedGame.id);
+            persistFavorites(`${selectedGame.titulo} se quitó de favoritos.`);
+          } else {
+            favorites = [
+              {
+                id: selectedGame.id,
+                titulo: selectedGame.titulo,
+                anio: yearSelect.value,
+              },
+              ...favorites,
+            ];
+            persistFavorites(`${selectedGame.titulo} se añadió a favoritos.`);
+          }
+        });
 
         document.getElementById("clear-history").addEventListener("click", () => {
           history = [];
@@ -1272,7 +1484,9 @@
 
         function selectGame(game, selectedButton, anio = yearSelect.value) {
           selectionVersion += 1;
+          selectedGame = game;
           selectedGameId = game.id;
+          updateFavoriteToggle();
           catalogResults.classList.add("has-selection");
           backToListTop.hidden = false;
           gameList.querySelectorAll(".game-card").forEach((button) => {
@@ -1374,7 +1588,9 @@
           gameDetail.hidden = true;
           catalogResults.classList.remove("has-selection");
           backToListTop.hidden = true;
+          selectedGame = null;
           selectedGameId = "";
+          updateFavoriteToggle();
           updateActiveFilters();
 
           try {
@@ -1427,6 +1643,9 @@
           });
         history = readHistory();
         renderHistory();
+        favorites = readFavorites();
+        renderFavorites();
+        updateFavoriteToggle();
       })();
     </script>
   </body>

@@ -43,6 +43,7 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b"position: sticky;", respuesta.data)
         self.assertIn(b'<nav class="topbar-actions" aria-label="Navegaci\xc3\xb3n principal">', respuesta.data)
         self.assertIn(b'class="nav-link nav-link-primary"', respuesta.data)
+        self.assertIn(b"color: #f5fbfa;", respuesta.data)
         self.assertIn(b"class=\"hero-explainer\"", respuesta.data)
         self.assertIn(b"Gu\xc3\xada interactiva", respuesta.data)
         self.assertIn(b'class="guide-step" open', respuesta.data)
@@ -91,6 +92,17 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b"localStorage.setItem", respuesta.data)
         self.assertIn(b"JSON bajo demanda", respuesta.data)
         self.assertIn(b"An\xc3\xa1lisis de clientes", respuesta.data)
+        self.assertIn(b'id="favorite-toggle"', respuesta.data)
+        self.assertIn(b'id="favorites-list"', respuesta.data)
+        self.assertIn(b"videojuegos-api-favorites", respuesta.data)
+        self.assertLess(
+            respuesta.data.index(b'id="history-title"'),
+            respuesta.data.index(b'id="favorites-title"'),
+        )
+        self.assertIn(b'class="footer-format"', respuesta.data)
+        self.assertIn(b"Cambiar formato", respuesta.data)
+        self.assertIn(b"@media (max-width: 900px)", respuesta.data)
+        self.assertIn(b"@media (max-width: 520px)", respuesta.data)
 
     def test_pagina_de_analisis_de_clientes_incluye_filtros_y_graficos(self):
         respuesta = self.cliente.get("/clientes")
@@ -194,6 +206,10 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertNotIn(b"Modo gamer", respuesta.data)
         self.assertIn(b"b9ff38", respuesta.data)
         self.assertIn(b"position: sticky;", respuesta.data)
+        self.assertIn(b"color: #f1f2ff;", respuesta.data)
+        self.assertIn(b'aria-current="page">Modo oscuro</a>', respuesta.data)
+        self.assertIn(b'id="favorites-list"', respuesta.data)
+        self.assertIn(b'class="footer-format"', respuesta.data)
         self.assertIn(b'<nav class="topbar-actions" aria-label="Navegaci\xc3\xb3n principal">', respuesta.data)
         self.assertIn(b'id="search-form"', respuesta.data)
         self.assertIn(b'id="game-detail"', respuesta.data)
