@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102b3f">
+    <title>Acceso privado · Análisis de clientes</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172b3a;
+        --muted: #617482;
+        --line: #dce6e9;
+        --paper: #fff;
+        --canvas: #f3f7f6;
+        --teal: #087e78;
+        --navy: #102b3f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        align-items: center;
+        background:
+          radial-gradient(ellipse at 50% -18%, rgb(70 178 151 / 14%), transparent 48%),
+          var(--canvas);
+        color: var(--ink);
+        display: flex;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        justify-content: center;
+        line-height: 1.55;
+        margin: 0;
+        min-height: 100vh;
+        padding: 22px;
+      }
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        box-shadow: 0 18px 55px rgb(23 43 58 / 10%);
+        max-width: 430px;
+        padding: clamp(24px, 6vw, 38px);
+        width: 100%;
+      }
+      .brand-mark {
+        align-items: center;
+        background: #b6eee0;
+        border-radius: 10px;
+        color: var(--navy);
+        display: inline-flex;
+        font-size: 12px;
+        font-weight: 800;
+        height: 36px;
+        justify-content: center;
+        width: 36px;
+      }
+      .eyebrow { color: var(--teal); font-size: 10px; font-weight: 800; letter-spacing: .13em; margin: 18px 0 8px; text-transform: uppercase; }
+      h1 { font-size: 29px; letter-spacing: -.04em; line-height: 1.1; margin: 0 0 10px; }
+      .intro { color: var(--muted); font-size: 13px; margin: 0 0 22px; }
+      label { color: var(--ink); display: block; font-size: 12px; font-weight: 750; margin-bottom: 7px; }
+      input {
+        border: 1px solid #cbd9dd;
+        border-radius: 8px;
+        font: inherit;
+        font-size: 14px;
+        min-height: 44px;
+        padding: 10px 12px;
+        width: 100%;
+      }
+      input:focus { border-color: var(--teal); outline: 3px solid rgb(8 126 120 / 13%); }
+      button {
+        background: var(--teal);
+        border: 0;
+        border-radius: 8px;
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 750;
+        margin-top: 14px;
+        min-height: 44px;
+        width: 100%;
+      }
+      button:hover { background: #05635e; }
+      .error { background: #fff0ef; border: 1px solid #f2c6c1; border-radius: 8px; color: #8a2e27; font-size: 12px; margin-bottom: 15px; padding: 10px 12px; }
+      .back { color: var(--teal); display: inline-block; font-size: 12px; font-weight: 700; margin-top: 18px; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+      .privacy { border-top: 1px solid var(--line); color: var(--muted); font-size: 10px; margin: 22px 0 0; padding-top: 14px; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <span class="brand-mark" aria-hidden="true">API</span>
+      <p class="eyebrow">Área privada</p>
+      <h1>Análisis de clientes</h1>
+      <p class="intro">Introduce la contraseña para ver el dashboard y los datos para desarrolladores.</p>
+      {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+      <form method="post" action="{{ url_for('iniciar_sesion_clientes') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="password">Contraseña</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+        <button type="submit">Entrar al análisis</button>
+      </form>
+      <a class="back" href="{{ url_for('home') }}">← Volver al calendario PS5</a>
+      <p class="privacy">La sesión se guarda mediante una cookie protegida. Cierra sesión al terminar, especialmente en un dispositivo compartido.</p>
+    </main>
+  </body>
+</html>

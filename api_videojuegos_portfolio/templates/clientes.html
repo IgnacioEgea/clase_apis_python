@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102b3f">
+    <title>Análisis de clientes · API REST</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #172b3a;
+        --muted: #617482;
+        --line: #dce6e9;
+        --paper: #fff;
+        --canvas: #f3f7f6;
+        --teal: #087e78;
+        --navy: #102b3f;
+        --mint: #e4f5ef;
+        --shadow: 0 18px 45px rgb(23 43 58 / 8%);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+      .topbar {
+        align-items: center;
+        background: var(--navy);
+        color: #f5fbfa;
+        display: flex;
+        gap: 16px;
+        justify-content: space-between;
+        padding: 16px max(22px, calc((100vw - 1120px) / 2));
+      }
+      .brand {
+        align-items: center;
+        display: flex;
+        font-size: 15px;
+        font-weight: 750;
+        gap: 11px;
+        text-decoration: none;
+      }
+      .brand-mark {
+        align-items: center;
+        background: #b6eee0;
+        border-radius: 10px;
+        color: var(--navy);
+        display: inline-flex;
+        font-size: 13px;
+        height: 34px;
+        justify-content: center;
+        width: 34px;
+      }
+      .topbar-link {
+        border: 1px solid #72949b;
+        border-radius: 7px;
+        color: #f5fbfa;
+        font-size: 12px;
+        font-weight: 750;
+        padding: 8px 11px;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+      .topbar-link:hover { background: rgb(255 255 255 / 8%); }
+      .logout-form { margin: 0; }
+      .logout-button { background: transparent; border: 1px solid #72949b; border-radius: 7px; color: #f5fbfa; cursor: pointer; font: inherit; font-size: 12px; font-weight: 750; padding: 8px 11px; }
+      .logout-button:hover { background: rgb(255 255 255 / 8%); }
+      main { margin: 0 auto; max-width: 1120px; padding: 38px 24px 68px; }
+      .hero {
+        background:
+          radial-gradient(ellipse at 88% 10%, rgb(70 178 151 / 25%), transparent 32%),
+          linear-gradient(125deg, #102b3f 0%, #174b58 100%);
+        border-radius: 20px;
+        box-shadow: var(--shadow);
+        color: white;
+        overflow: hidden;
+        padding: clamp(26px, 5vw, 46px);
+      }
+      .eyebrow {
+        color: #a8e6d7;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .14em;
+        margin: 0 0 10px;
+        text-transform: uppercase;
+      }
+      h1, h2, h3, p { margin-top: 0; }
+      h1 { font-size: clamp(30px, 5vw, 48px); letter-spacing: -.045em; line-height: 1.08; margin-bottom: 12px; }
+      .hero > p:not(.eyebrow) { color: #d2e0e3; margin: 0; max-width: 700px; }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+      .hero-button {
+        background: #b6eee0;
+        border: 1px solid #b6eee0;
+        border-radius: 8px;
+        color: #123b43;
+        display: inline-flex;
+        font-size: 13px;
+        font-weight: 750;
+        padding: 10px 14px;
+        text-decoration: none;
+      }
+      .hero-button:hover { background: #d3f6ec; }
+      .hero-button-secondary { background: transparent; border-color: #72949b; color: white; }
+      .hero-button-secondary:hover { background: rgb(255 255 255 / 8%); }
+      .notice {
+        background: #fff8e8;
+        border: 1px solid #f0dfb3;
+        border-radius: 10px;
+        color: #644d1f;
+        font-size: 12px;
+        margin: 16px 0;
+        padding: 12px 15px;
+      }
+      .stats { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); margin: 16px 0; }
+      .stat, .panel {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: 0 8px 25px rgb(23 43 58 / 4%);
+      }
+      .stat { padding: 16px 19px; }
+      .stat-label { color: var(--muted); font-size: 12px; }
+      .stat-value { display: block; font-size: 27px; font-weight: 780; letter-spacing: -.04em; }
+      .grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; margin-top: 16px; }
+      .panel { min-width: 0; padding: 20px; }
+      .panel h2 { font-size: 17px; letter-spacing: -.02em; margin-bottom: 4px; }
+      .panel-intro { color: var(--muted); font-size: 12px; margin-bottom: 16px; }
+      .toolbar { align-items: end; display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; margin: 16px 0 12px; }
+      .filter-label { color: var(--muted); display: grid; font-size: 11px; font-weight: 750; gap: 5px; }
+      input, select {
+        background: white;
+        border: 1px solid #cbd9dd;
+        border-radius: 8px;
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        min-height: 40px;
+        padding: 8px 11px;
+      }
+      input { min-width: min(270px, 70vw); }
+      input:focus, select:focus { border-color: var(--teal); outline: 3px solid rgb(8 126 120 / 13%); }
+      .legend { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: 11px; gap: 12px; }
+      .legend span { align-items: center; display: inline-flex; gap: 5px; }
+      .dot { border-radius: 50%; display: inline-block; height: 9px; width: 9px; }
+      .chart { min-height: 230px; overflow: auto hidden; }
+      .chart svg { display: block; height: auto; max-width: 100%; overflow: visible; }
+      .chart-empty { color: var(--muted); font-size: 12px; padding: 32px 8px; text-align: center; }
+      .table-wrap { overflow-x: auto; }
+      table { border-collapse: collapse; font-size: 12px; min-width: 700px; width: 100%; }
+      th, td { border-bottom: 1px solid var(--line); padding: 10px 9px; text-align: left; }
+      th { color: var(--muted); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
+      td.numeric, th.numeric { font-variant-numeric: tabular-nums; text-align: right; }
+      .client-name { font-weight: 700; }
+      .client-id { color: var(--muted); display: block; font-size: 10px; }
+      .badge { background: var(--mint); border-radius: 999px; color: #05635e; display: inline-block; font-size: 10px; font-weight: 750; padding: 3px 8px; }
+      .error { background: #fff0ef; border: 1px solid #f2c6c1; border-radius: 10px; color: #8a2e27; display: none; font-size: 13px; margin-top: 16px; padding: 14px; }
+      .error.visible { display: block; }
+      .loading { color: var(--muted); font-size: 13px; padding: 20px 0; }
+      .footnote { color: var(--muted); font-size: 11px; margin: 14px 2px 0; }
+      #developer-data { margin-top: 16px; scroll-margin-top: 20px; }
+      .developer-header { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+      .developer-endpoint { align-items: center; background: #122e3e; border-radius: 8px; color: #d9f4e9; display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; padding: 12px; }
+      .developer-endpoint code { flex: 1; font-size: 13px; overflow-wrap: anywhere; }
+      .http-method { background: #b6eee0; border-radius: 5px; color: #123b43; font-size: 10px; font-weight: 850; padding: 4px 7px; }
+      .developer-link, .copy-button { background: var(--mint); border: 1px solid #b8ded5; border-radius: 7px; color: #05635e; cursor: pointer; font: inherit; font-size: 11px; font-weight: 750; padding: 7px 10px; text-decoration: none; }
+      .developer-link:hover, .copy-button:hover { background: #d3f6ec; }
+      .developer-grid { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+      .developer-grid h3 { font-size: 13px; margin: 6px 0; }
+      .developer-grid p { color: var(--muted); font-size: 11px; margin: 0 0 8px; }
+      .code-block { background: #122e3e; border-radius: 9px; color: #d9f4e9; display: block; font: 11px/1.65 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow: auto; padding: 13px; white-space: pre; }
+      .developer-footnote { color: var(--muted); font-size: 11px; margin: 14px 0 0; }
+      footer { color: var(--muted); font-size: 11px; padding: 0 0 12px; text-align: center; }
+      @media (max-width: 760px) {
+        main { padding: 22px 16px 44px; }
+        .grid { grid-template-columns: 1fr; }
+        .developer-grid { grid-template-columns: 1fr; }
+        .stats { gap: 9px; }
+        .stat { padding: 12px; }
+        .stat-value { font-size: 22px; }
+      }
+      @media (max-width: 480px) {
+        .topbar { gap: 8px; padding: 12px; }
+        .brand { font-size: 12px; gap: 7px; }
+        .brand-mark { height: 30px; width: 30px; }
+        .topbar-link { font-size: 10px; padding: 7px; }
+        .hero-button { flex: 1 1 auto; justify-content: center; }
+        main { padding-left: 12px; padding-right: 12px; }
+        .stats { grid-template-columns: 1fr; }
+        .toolbar { align-items: stretch; }
+        .toolbar .filter-label, .toolbar select, .toolbar input { width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="{{ url_for('home') }}">
+        <span class="brand-mark" aria-hidden="true">API</span>
+        <span>Datos y servicios</span>
+      </a>
+      <form class="logout-form" method="post" action="{{ url_for('cerrar_sesion_clientes') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="logout-button" type="submit">Cerrar sesión</button>
+      </form>
+      <a class="topbar-link" href="{{ url_for('home') }}">Volver al calendario PS5</a>
+    </header>
+    <main>
+      <section class="hero">
+        <p class="eyebrow">API REST · Datos de ejemplo</p>
+        <h1>Una mirada clara<br>al perfil de clientes.</h1>
+        <p>La web consume el endpoint de clientes, convierte la respuesta JSON en información comparable y actualiza la tabla y los gráficos al filtrar.</p>
+        <div class="hero-actions">
+          <a class="hero-button" href="#developer-data">Datos para el desarrollador <span aria-hidden="true">&nbsp;↓</span></a>
+          <a class="hero-button hero-button-secondary" href="#analysis">Ver el dashboard <span aria-hidden="true">&nbsp;↓</span></a>
+        </div>
+      </section>
+      <p class="notice"><strong>Datos sintéticos:</strong> estos registros se han creado para fines didácticos. No representan personas, empresas ni historiales financieros reales.</p>
+      <div class="error" id="error" role="alert"></div>
+      <p class="loading" id="loading" role="status">Consultando la API de clientes…</p>
+      <section class="stats" id="stats" hidden aria-label="Resumen de clientes">
+        <article class="stat"><span class="stat-label">Clientes visibles</span><strong class="stat-value" id="stat-total">—</strong></article>
+        <article class="stat"><span class="stat-label">Ingresos anuales medios</span><strong class="stat-value" id="stat-income">—</strong></article>
+        <article class="stat"><span class="stat-label">Salud crediticia media</span><strong class="stat-value" id="stat-health">—</strong></article>
+      </section>
+      <section class="panel toolbar" aria-label="Filtros">
+        <label class="filter-label" for="search">Buscar por nombre, ID o país
+          <input id="search" type="search" placeholder="Ej.: Ana o ES" autocomplete="off">
+        </label>
+        <label class="filter-label" for="type-filter">Tipo de cliente
+          <select id="type-filter"><option value="">Todos los tipos</option><option>Particular</option><option>Empresa</option></select>
+        </label>
+      </section>
+      <section class="grid" id="analysis" hidden>
+        <article class="panel">
+          <h2>Ratio de endeudamiento</h2>
+          <p class="panel-intro">Préstamos vigentes divididos por ingresos anuales · ordenado de mayor a menor.</p>
+          <div class="chart" id="debt-chart" role="img" aria-label="Gráfico del ratio de endeudamiento por cliente"></div>
+        </article>
+        <article class="panel">
+          <h2>Ingresos y salud crediticia</h2>
+          <p class="panel-intro">Cada punto representa un cliente. El score se expresa en una escala de 0 a 100.</p>
+          <div class="legend"><span><i class="dot" style="background:#087e78"></i>Particular</span><span><i class="dot" style="background:#e18a38"></i>Empresa</span></div>
+          <div class="chart" id="health-chart" role="img" aria-label="Gráfico de ingresos e índice de salud crediticia"></div>
+        </article>
+      </section>
+      <section class="panel" id="clients-panel" hidden style="margin-top:16px">
+        <h2>Detalle de clientes</h2>
+        <p class="panel-intro" id="table-count"></p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Cliente</th><th>Tipo</th><th class="numeric">Ingresos anuales</th><th class="numeric">Préstamos</th><th class="numeric">Ratio</th><th class="numeric">Salud</th></tr></thead>
+            <tbody id="client-rows"></tbody>
+          </table>
+        </div>
+        <p class="footnote">Este ratio es el indicador simplificado del ejercicio; al usar el número de préstamos (no el importe adeudado), no es un ratio financiero estándar.</p>
+      </section>
+      <section class="panel" id="developer-data" aria-labelledby="developer-title">
+        <div class="developer-header">
+          <div>
+            <h2 id="developer-title">Datos para el desarrollador</h2>
+            <p class="panel-intro">Consulta el endpoint JSON que alimenta este dashboard e intégralo en otra aplicación.</p>
+          </div>
+        </div>
+        <div class="developer-endpoint">
+          <span class="http-method">GET</span>
+          <code id="endpoint-url" data-endpoint="{{ url_for('api_clientes') }}">{{ url_for('api_clientes') }}</code>
+          <a class="developer-link" href="{{ url_for('api_clientes') }}" target="_blank" rel="noopener">Abrir JSON</a>
+          <button class="copy-button" id="copy-endpoint" type="button">Copiar ruta</button>
+        </div>
+        <div class="developer-grid">
+          <div>
+            <h3>Ejemplo con curl</h3>
+            <p>El endpoint requiere la sesión abierta en esta web. Sin la cookie de sesión responderá HTTP 401.</p>
+            <code class="code-block" id="curl-example">curl -H "Accept: application/json" https://tu-dominio/api/clientes</code>
+            <h3>Ejemplo en Python</h3>
+            <p>El mismo endpoint se puede consumir con la librería <code>requests</code>.</p>
+            <pre class="code-block">import requests
+
+url = "https://tu-dominio/api/clientes"
+response = requests.get(url, timeout=15)
+response.raise_for_status()
+clientes = response.json()
+print(clientes)</pre>
+          </div>
+          <div>
+            <h3>Estructura de la respuesta</h3>
+            <p>La API devuelve una lista JSON de clientes. Este fragmento muestra los campos usados en el análisis:</p>
+            <pre class="code-block">[
+  {
+    "id_cliente": "CLI-2026-894021",
+    "informacion_personal": {
+      "nombre": "Ana",
+      "apellido": "Gomez",
+      "pais_residencia": "ES"
+    },
+    "productos_activos": {
+      "prestamos_vigentes": 0
+    },
+    "segmentacion": {
+      "nivel_ingresos_anual": 45000,
+      "score_crediticio_interno": 740,
+      "tipo_cliente": "Particular"
+    }
+  }
+]</pre>
+          </div>
+        </div>
+        <p class="developer-footnote">El dashboard carga la respuesta completa y filtra en el navegador. El endpoint no recibe ni almacena datos enviados desde el navegador. Los registros son sintéticos y se ofrecen únicamente con fines educativos.</p>
+      </section>
+      <footer>Los datos se solicitan a la API de clientes cada vez que se abre esta página. El navegador no guarda el historial financiero.</footer>
+    </main>
+    <script>
+      "use strict";
+      const loading = document.getElementById("loading");
+      const errorBox = document.getElementById("error");
+      const stats = document.getElementById("stats");
+      const analysis = document.getElementById("analysis");
+      const clientsPanel = document.getElementById("clients-panel");
+      const search = document.getElementById("search");
+      const typeFilter = document.getElementById("type-filter");
+      let allClients = [];
+
+      const number = (value) => new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 }).format(value);
+      const percent = (value) => new Intl.NumberFormat("es-ES", { style: "percent", maximumFractionDigits: 3 }).format(value);
+      const safeText = (value) => String(value ?? "");
+      const fullName = (client) => {
+        const person = client.informacion_personal || {};
+        return [person.nombre, person.apellido].filter(Boolean).join(" ") || "Sin nombre";
+      };
+      function normalizeClient(client) {
+        const products = client.productos_activos || {};
+        const segment = client.segmentacion || {};
+        const income = Number(segment.nivel_ingresos_anual);
+        const loans = Number(products.prestamos_vigentes);
+        const score = Number(segment.score_crediticio_interno);
+        if (!Number.isFinite(income) || income <= 0 || !Number.isFinite(loans) || loans < 0 || !Number.isFinite(score) || score < 0 || score > 1000) {
+          throw new Error("Hay un registro con ingresos, préstamos o puntuación inválidos.");
+        }
+        return {
+          id: safeText(client.id_cliente),
+          name: fullName(client),
+          country: safeText(client.informacion_personal?.pais_residencia),
+          type: safeText(segment.tipo_cliente) || "Sin tipo",
+          income,
+          loans,
+          ratio: loans / income,
+          health: score / 10,
+        };
+      }
+      function renderTable(clients) {
+        document.getElementById("table-count").textContent = `${clients.length} resultado${clients.length === 1 ? "" : "s"}`;
+        document.getElementById("client-rows").replaceChildren(...clients.map((client) => {
+          const row = document.createElement("tr");
+          const nameCell = document.createElement("td");
+          const name = document.createElement("span");
+          const id = document.createElement("span");
+          name.className = "client-name";
+          id.className = "client-id";
+          name.textContent = client.name;
+          id.textContent = `${client.id}${client.country ? ` · ${client.country}` : ""}`;
+          nameCell.append(name, id);
+          const typeCell = document.createElement("td");
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = client.type;
+          typeCell.append(badge);
+          row.append(nameCell, typeCell);
+          [
+            number(client.income),
+            number(client.loans),
+            percent(client.ratio),
+            `${number(client.health)} / 100`,
+          ].forEach((value) => {
+            const cell = document.createElement("td");
+            cell.className = "numeric";
+            cell.textContent = value;
+            row.append(cell);
+          });
+          return row;
+        }));
+      }
+      function setStats(clients) {
+        document.getElementById("stat-total").textContent = number(clients.length);
+        document.getElementById("stat-income").textContent = clients.length
+          ? number(clients.reduce((sum, client) => sum + client.income, 0) / clients.length)
+          : "—";
+        document.getElementById("stat-health").textContent = clients.length
+          ? `${(clients.reduce((sum, client) => sum + client.health, 0) / clients.length).toFixed(1).replace(".", ",")} / 100`
+          : "—";
+      }
+      function svgElement(name, attrs = {}) {
+        const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+        Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+        return node;
+      }
+      function chartMessage(container, message) {
+        container.replaceChildren();
+        const text = document.createElement("p");
+        text.className = "chart-empty";
+        text.textContent = message;
+        container.append(text);
+      }
+      function renderDebtChart(clients) {
+        const target = document.getElementById("debt-chart");
+        if (!clients.length) return chartMessage(target, "No hay clientes que coincidan con los filtros.");
+        const rows = [...clients].sort((a, b) => b.ratio - a.ratio);
+        const width = 500;
+        const rowHeight = 36;
+        const left = 138;
+        const right = 82;
+        const max = Math.max(...rows.map((item) => item.ratio), 0.000001);
+        const svg = svgElement("svg", { viewBox: `0 0 ${width} ${rows.length * rowHeight + 12}`, role: "img", "aria-label": "Ratio de préstamos sobre ingresos" });
+        rows.forEach((client, index) => {
+          const y = index * rowHeight + 7;
+          const label = svgElement("text", { x: left - 9, y: y + 15, "text-anchor": "end", fill: "#526b78", "font-size": 11 });
+          label.textContent = client.name.length > 19 ? `${client.name.slice(0, 18)}…` : client.name;
+          const track = svgElement("rect", { x: left, y: y + 3, width: width - left - right, height: 18, rx: 5, fill: "#edf2f2" });
+          const barWidth = Math.max((client.ratio / max) * (width - left - right), 2);
+          const color = rows.length < 2 ? "#e05a4f" : `hsl(${(index / (rows.length - 1)) * 120} 48% 48%)`;
+          const bar = svgElement("rect", { x: left, y: y + 3, width: barWidth, height: 18, rx: 5, fill: color });
+          const value = svgElement("text", { x: width - right + 7, y: y + 16, fill: "#526b78", "font-size": 10 });
+          value.textContent = percent(client.ratio);
+          svg.append(label, track, bar, value);
+        });
+        target.replaceChildren(svg);
+      }
+      function renderHealthChart(clients) {
+        const target = document.getElementById("health-chart");
+        if (!clients.length) return chartMessage(target, "No hay clientes que coincidan con los filtros.");
+        const width = 500;
+        const height = 250;
+        const margin = { top: 14, right: 20, bottom: 42, left: 48 };
+        const innerWidth = width - margin.left - margin.right;
+        const innerHeight = height - margin.top - margin.bottom;
+        const maxIncome = Math.max(...clients.map((client) => client.income), 1);
+        const maxX = Math.ceil(maxIncome / 10000) * 10000;
+        const x = (value) => margin.left + (value / maxX) * innerWidth;
+        const y = (value) => margin.top + innerHeight - (value / 100) * innerHeight;
+        const svg = svgElement("svg", { viewBox: `0 0 ${width} ${height}`, role: "img", "aria-label": "Ingresos anuales frente a salud crediticia" });
+        [0, 25, 50, 75, 100].forEach((tick) => {
+          const line = svgElement("line", { x1: margin.left, x2: width - margin.right, y1: y(tick), y2: y(tick), stroke: "#e5ecec" });
+          const label = svgElement("text", { x: margin.left - 7, y: y(tick) + 4, "text-anchor": "end", fill: "#617482", "font-size": 10 });
+          label.textContent = String(tick);
+          svg.append(line, label);
+        });
+        const xLabel = svgElement("text", { x: margin.left + innerWidth / 2, y: height - 7, "text-anchor": "middle", fill: "#617482", "font-size": 10 });
+        xLabel.textContent = "Ingresos anuales";
+        const yLabel = svgElement("text", { x: 12, y: margin.top + innerHeight / 2, transform: `rotate(-90 12 ${margin.top + innerHeight / 2})`, "text-anchor": "middle", fill: "#617482", "font-size": 10 });
+        yLabel.textContent = "Salud crediticia / 100";
+        svg.append(xLabel, yLabel);
+        clients.forEach((client) => {
+          const point = svgElement("circle", {
+            cx: x(client.income),
+            cy: y(client.health),
+            r: 6,
+            fill: client.type === "Empresa" ? "#e18a38" : "#087e78",
+            stroke: "#fff",
+            "stroke-width": 2,
+            tabindex: 0,
+            "aria-label": `${client.name}: ingresos ${number(client.income)}, salud ${client.health.toFixed(1)} de 100`,
+          });
+          const title = svgElement("title");
+          title.textContent = `${client.name} · ${number(client.income)} · ${client.health.toFixed(1)}/100`;
+          point.append(title);
+          svg.append(point);
+        });
+        target.replaceChildren(svg);
+      }
+      function update() {
+        const query = search.value.trim().toLocaleLowerCase("es");
+        const type = typeFilter.value;
+        const visible = allClients.filter((client) => {
+          const matchesQuery = !query || `${client.name} ${client.id} ${client.country}`.toLocaleLowerCase("es").includes(query);
+          return matchesQuery && (!type || client.type === type);
+        });
+        setStats(visible);
+        renderTable(visible);
+        renderDebtChart(visible);
+        renderHealthChart(visible);
+      }
+      async function loadClients() {
+        try {
+          const response = await fetch("/api/clientes", { headers: { Accept: "application/json" } });
+          const payload = await response.json();
+          if (!response.ok) throw new Error(payload.error || `Error HTTP ${response.status}`);
+          if (!Array.isArray(payload)) throw new Error("La API no devolvió una lista de clientes.");
+          allClients = payload.map(normalizeClient);
+          loading.hidden = true;
+          stats.hidden = false;
+          analysis.hidden = false;
+          clientsPanel.hidden = false;
+          update();
+        } catch (error) {
+          loading.hidden = true;
+          errorBox.textContent = `No se pudieron cargar los clientes: ${error.message}`;
+          errorBox.classList.add("visible");
+        }
+      }
+      search.addEventListener("input", update);
+      typeFilter.addEventListener("change", update);
+      document.getElementById("copy-endpoint").addEventListener("click", async (event) => {
+        const button = event.currentTarget;
+        try {
+          await navigator.clipboard.writeText(new URL("/api/clientes", window.location.origin).toString());
+          button.textContent = "Ruta copiada";
+        } catch {
+          button.textContent = "Copia /api/clientes";
+        }
+      });
+      loadClients();
+    </script>
+  </body>
+</html>
