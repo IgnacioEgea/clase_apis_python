@@ -72,8 +72,8 @@ en local, inicia ambos procesos configurando la misma variable
 5001 y el servidor web con `API_CLIENTES_HOST=127.0.0.1:5001` y un
 `FLASK_SECRET_KEY` aleatorio. Ambos servicios usan datos sintéticos.
 
-Abre `http://127.0.0.1:5000/` para ver la portada. El catálogo importa la lista de juegos nativos de PS5 de Wikipedia y la lista
-de PS VR2 (1.128 y 438 registros en la última actualización), incluye juegos
+Abre `http://127.0.0.1:5000/` para ver la portada. El catálogo importa la lista de juegos de PS5 de Wikipedia y añade los juegos
+de su categoría de PS5 que faltaban (1.689 juegos, sin títulos de PS VR2), incluye juegos
 multiplataforma, deduplica títulos coincidentes y conserva las fichas
 enriquecidas que ya tenía el proyecto. Los juegos se separan por año desde
 2020; los que no tienen año confirmado quedan en un archivo aparte. Los
@@ -111,7 +111,7 @@ en 3DJuegos (60 votos) y 86/100 y 8,0/10 en Metacritic.
 
 Las listas se actualizan con `python ejercicios_api/api_videojuegos/importar_catalogo.py`.
 Las fuentes son la [lista de juegos nativos de PS5](https://en.wikipedia.org/wiki/List_of_PlayStation_5_games)
-y la [lista de juegos de PS VR2](https://en.wikipedia.org/wiki/List_of_PlayStation_VR2_games),
+y [Wikidata](https://www.wikidata.org/) para los juegos añadidos,
 que incluye fechas regionales, desarrolladores y géneros, pero no resúmenes ni
 portadas para todos los títulos. Se toma la fecha PAL/Europa; cuando falta, NA
 y luego Japón. Wikipedia se distribuye bajo CC BY-SA: conserva la atribución y

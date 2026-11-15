@@ -1,4 +1,5 @@
 import csv
+import gzip
 import io
 import json
 import os
@@ -8,9 +9,11 @@ from urllib.error import URLError
 from unittest.mock import MagicMock, patch
 
 try:
-    from app import app
+    import app as modulo_app
 except ModuleNotFoundError:
-    from ejercicios_api.api_videojuegos.app import app
+    from ejercicios_api.api_videojuegos import app as modulo_app
+
+app = modulo_app.app
 
 
 class ApiVideojuegosTests(unittest.TestCase):
@@ -19,10 +22,27 @@ class ApiVideojuegosTests(unittest.TestCase):
             os.environ, {"CLIENTES_PASSWORD": "test-password"}
         )
         self.password_environment.start()
+        modulo_app.CACHE_IMAGENES.clear()
+        modulo_app.CACHE_PORTADAS.clear()
         self.cliente = app.test_client()
 
     def tearDown(self):
         self.password_environment.stop()
+
+    def pagina_con_recursos(self, ruta):
+        """Devuelve la página junto con su CSS y JS externos."""
+        respuesta = self.cliente.get(ruta)
+        recursos = re.findall(
+            rb'(?:href|src)="(/static/[^"]+)"', respuesta.data
+        )
+        self.assertEqual(len(recursos), 2)
+        contenido = respuesta.data
+        for recurso in recursos:
+            estatico = self.cliente.get(recurso.decode().replace("&amp;", "&"))
+            self.assertEqual(estatico.status_code, 200)
+            contenido += estatico.data
+            estatico.close()
+        return respuesta, contenido
 
     def iniciar_sesion_clientes(self, password="test-password"):
         pagina = self.cliente.get("/clientes")
@@ -35,10 +55,11 @@ class ApiVideojuegosTests(unittest.TestCase):
         )
 
     def test_home_explains_calendar_and_api(self):
-        respuesta = self.cliente.get("/")
+        pagina, contenido = self.pagina_con_recursos("/")
+        respuesta = type("Pagina", (), {"data": contenido})
 
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertEqual(respuesta.headers["Cache-Control"], "no-store")
+        self.assertEqual(pagina.status_code, 200)
+        self.assertEqual(pagina.headers["Cache-Control"], "no-store")
         self.assertIn(b"Calendario PS5", respuesta.data)
         self.assertIn(b"position: sticky;", respuesta.data)
         self.assertIn(b'<nav class="topbar-actions" aria-label="Navegaci\xc3\xb3n principal">', respuesta.data)
@@ -62,7 +83,8 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn(b"2021", respuesta.data)
         self.assertIn(b"categoryCache", respuesta.data)
         self.assertIn(b"game-detail", respuesta.data)
-        self.assertIn(b'value="2027" selected', respuesta.data)
+        anio_actual = str(modulo_app.date.today().year).encode()
+        self.assertIn(b'value="' + anio_actual + b'" selected', respuesta.data)
         self.assertIn(b"Desarrollador", respuesta.data)
         self.assertIn(b"saveSelectedGame", respuesta.data)
         self.assertNotIn(b"function saveSearch", respuesta.data)
@@ -201,9 +223,10 @@ class ApiVideojuegosTests(unittest.TestCase):
         )
 
     def test_pagina_modo_oscuro_reutiliza_catalogo_sin_cambiar_la_api(self):
-        respuesta = self.cliente.get("/modo-oscuro")
+        pagina, contenido = self.pagina_con_recursos("/modo-oscuro")
+        respuesta = type("Pagina", (), {"data": contenido})
 
-        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(pagina.status_code, 200)
         self.assertIn(b'<body class="theme-gamer">', respuesta.data)
         self.assertIn(b"Modo oscuro", respuesta.data)
         self.assertIn(b'Dise\xc3\xb1o original', respuesta.data)
@@ -225,7 +248,7 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertEqual(
             respuesta.get_json(),
             {
-                "anios": [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027],
+                "anios": [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028],
                 "incluye_sin_fecha": True,
             },
         )
@@ -251,7 +274,6 @@ class ApiVideojuegosTests(unittest.TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.mimetype, "application/json")
-        self.assertTrue(respuesta.is_streamed)
         juegos = respuesta.get_json()
         self.assertGreater(len(juegos), 50)
         phantom = next(juego for juego in juegos if juego["id"] == "phantom-blade-zero")
@@ -307,16 +329,35 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertEqual(juegos[0]["id"], "arknights-endfield")
         self.assertEqual(juegos[0]["fecha_salida"], "2026-01-22")
 
-    def test_catalogo_incluye_lanzamientos_de_ps_vr2(self):
-        respuesta = self.cliente.get(
-            "/api/videojuegos?anio=2023&q=Zenith+Nexus"
-        )
+    def test_catalogo_no_incluye_juegos_de_realidad_virtual(self):
+        for anio in ["2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "sin-fecha"]:
+            with self.subTest(anio=anio):
+                juegos = self.cliente.get(f"/api/videojuegos?anio={anio}").get_json()
+                self.assertTrue(all(juego["plataforma"] == "PS5" for juego in juegos))
+                self.assertFalse(
+                    any("VR" in juego["notas"] for juego in juegos)
+                )
+        self.assertEqual(self.cliente.get("/api/videojuegos/zenith-nexus").status_code, 404)
+        # Los juegos normales con modo VR opcional se conservan como PS5.
+        gt7 = self.cliente.get("/api/videojuegos/gran-turismo-7").get_json()
+        self.assertEqual(gt7["plataforma"], "PS5")
 
-        self.assertEqual(respuesta.status_code, 200)
-        juegos = respuesta.get_json()
-        self.assertEqual(len(juegos), 1)
-        self.assertEqual(juegos[0]["id"], "zenith-nexus")
-        self.assertEqual(juegos[0]["plataforma"], "PS5 · PS VR2")
+    def test_catalogo_incluye_titulos_conocidos_que_faltaban(self):
+        for anio, titulo in [
+            ("2026", "Hades II"),
+            ("2024", "Star Wars Outlaws"),
+            ("2024", "Prince of Persia: The Lost Crown"),
+            ("2023", "Sea of Stars"),
+            ("2022", "Tunic"),
+            ("2024", "Neva"),
+            ("2022", "Outer Wilds"),
+            ("2024", "Marvel Rivals"),
+        ]:
+            with self.subTest(titulo=titulo):
+                juegos = self.cliente.get(
+                    f"/api/videojuegos?anio={anio}&q={titulo}"
+                ).get_json()
+                self.assertIn(titulo, [juego["titulo"] for juego in juegos])
 
     def test_busqueda_aproximada_y_filtros_se_combinan(self):
         respuesta = self.cliente.get(
@@ -517,19 +558,92 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertEqual(juego["puntuacion_metacritic_criticos"], "78")
         self.assertEqual(juego["puntuacion_metacritic_usuarios"], "6.1")
 
-    def test_juego_sin_foto_real_muestra_sustituto_identificado(self):
-        respuesta = self.cliente.get("/imagenes/zenith-nexus")
+    def respuesta_imagen(self, contenido=b"portada", tipo="image/jpeg", url_final=None):
+        contexto = MagicMock()
+        upstream = contexto.__enter__.return_value
+        upstream.headers.get_content_type.return_value = tipo
+        upstream.read.return_value = contenido
+        upstream.geturl.return_value = url_final
+        return contexto, upstream
+
+    def test_juego_sin_foto_real_muestra_sustituto_si_no_hay_portada(self):
+        with patch(
+            f"{app.import_name}.leer_json_externo",
+            side_effect=URLError("sin conexión"),
+        ):
+            respuesta = self.cliente.get("/imagenes/sea-of-stars")
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.mimetype, "image/svg+xml")
         self.assertEqual(respuesta.headers["X-Image-Fallback"], "true")
-        self.assertIn(b"Zenith: Nexus", respuesta.data)
+        self.assertIn(b"Sea of Stars", respuesta.data)
         self.assertIn(b"IMAGEN ORIGINAL NO DISPONIBLE", respuesta.data)
+
+    def test_portada_se_obtiene_de_wikipedia(self):
+        wikipedia = {
+            "query": {"pages": [{
+                "title": "Sea of Stars",
+                "thumbnail": {
+                    "source": "https://upload.wikimedia.org/wikipedia/en/thumb/a/ab/Sea_of_Stars.jpg/600px-Sea_of_Stars.jpg?utm_source=x"
+                },
+            }]}
+        }
+        url = "https://upload.wikimedia.org/wikipedia/en/thumb/a/ab/Sea_of_Stars.jpg/600px-Sea_of_Stars.jpg"
+        contexto, _ = self.respuesta_imagen(b"wiki", url_final=url)
+        with patch(
+            f"{app.import_name}.leer_json_externo", return_value=wikipedia
+        ) as buscar, patch(
+            f"{app.import_name}.urlopen", return_value=contexto
+        ) as descargar:
+            primera = self.cliente.get("/imagenes/sea-of-stars")
+            segunda = self.cliente.get("/imagenes/sea-of-stars")
+
+        self.assertEqual(primera.data, b"wiki")
+        self.assertEqual(segunda.data, b"wiki")
+        self.assertIn("pilicense=any", buscar.call_args.args[0])
+        self.assertIn("titles=Sea+of+Stars", buscar.call_args.args[0])
+        self.assertEqual(descargar.call_args.args[0].full_url, url)
+        # La segunda petición sale de la caché: ni búsqueda ni descarga nuevas.
+        self.assertEqual(buscar.call_count, 1)
+        self.assertEqual(descargar.call_count, 1)
+
+    def test_portada_de_steam_si_no_hay_articulo(self):
+        juego = {
+            "id": "juego-indie",
+            "titulo": "Juego Indie™",
+            "fuente": "https://en.wikipedia.org/wiki/List_of_PlayStation_5_games",
+            "imagen_url": "/imagenes/juego-indie",
+        }
+        steam = {"items": [
+            {"id": 1, "name": "Juego Indie 2", "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1/capsule_231x87.jpg"},
+            {"id": 790850, "name": "Juego Indie", "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/790850/capsule_231x87.jpg?t=1"},
+        ]}
+        url = "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/790850/library_600x900.jpg"
+        contexto, _ = self.respuesta_imagen(b"steam", url_final=url)
+        with patch(f"{app.import_name}.buscar_videojuego", return_value=juego), patch(
+            f"{app.import_name}.leer_json_externo", return_value=steam
+        ) as buscar, patch(f"{app.import_name}.urlopen", return_value=contexto) as descargar:
+            respuesta = self.cliente.get("/imagenes/juego-indie")
+
+        self.assertEqual(respuesta.data, b"steam")
+        self.assertIn("store.steampowered.com", buscar.call_args.args[0])
+        self.assertEqual(descargar.call_args.args[0].full_url, url)
+
+    def test_portada_rechaza_hosts_no_permitidos(self):
+        wikipedia = {"query": {"pages": [{"thumbnail": {"source": "https://evil.example/x.jpg"}}]}}
+        with patch(
+            f"{app.import_name}.leer_json_externo",
+            side_effect=[wikipedia, {"items": []}],
+        ), patch(f"{app.import_name}.urlopen") as descargar:
+            respuesta = self.cliente.get("/imagenes/sea-of-stars")
+
+        self.assertEqual(respuesta.headers["X-Image-Fallback"], "true")
+        descargar.assert_not_called()
 
     def test_todos_los_juegos_tienen_url_de_imagen(self):
         ids = []
         metacritic_scores = 0
-        for anio in range(2020, 2028):
+        for anio in range(2020, 2029):
             catalogo = self.cliente.get(
                 f"/api/videojuegos?anio={anio}"
             ).get_json()
@@ -569,8 +683,8 @@ class ApiVideojuegosTests(unittest.TestCase):
                 for juego in sin_fecha
             )
         )
-        self.assertGreaterEqual(len(ids) + len(sin_fecha), 1128)
-        self.assertGreaterEqual(metacritic_scores, 480)
+        self.assertGreaterEqual(len(ids) + len(sin_fecha), 1600)
+        self.assertGreaterEqual(metacritic_scores, 440)
         all_ids = ids + [juego["id"] for juego in sin_fecha]
         self.assertEqual(len(all_ids), len(set(all_ids)))
 
@@ -640,6 +754,104 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertEqual(respuesta.mimetype, "application/gzip")
         self.assertIn("2021.csv.gz", respuesta.headers["Content-Disposition"])
         respuesta.close()
+
+    def test_recursos_estaticos_versionados_se_cachean_un_anio(self):
+        pagina = self.cliente.get("/")
+        css = re.search(rb'href="(/static/css/app\.css\?v=[0-9a-f]+)"', pagina.data)
+        self.assertIsNotNone(css)
+        respuesta = self.cliente.get(css.group(1).decode())
+
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("immutable", respuesta.headers["Cache-Control"])
+        respuesta.close()
+
+    def test_categorias_por_anio_sin_descargar_catalogo(self):
+        respuesta = self.cliente.get("/api/categorias?anio=2026")
+
+        self.assertEqual(respuesta.status_code, 200)
+        datos = respuesta.get_json()
+        catalogo = self.cliente.get("/api/videojuegos?anio=2026").get_json()
+        normalizar = modulo_app.normalizar_categoria
+        esperadas = {
+            normalizar(juego["categoria"]) for juego in catalogo if juego["categoria"]
+        }
+        self.assertEqual({normalizar(c) for c in datos["categorias"]}, esperadas)
+        self.assertEqual(len(datos["categorias"]), len(esperadas))
+
+    def test_categorias_no_repiten_variantes_de_mayusculas(self):
+        categorias = self.cliente.get("/api/categorias?anio=2024").get_json()[
+            "categorias"
+        ]
+        normalizadas = [modulo_app.normalizar_categoria(c) for c in categorias]
+
+        self.assertEqual(len(normalizadas), len(set(normalizadas)))
+        self.assertEqual(
+            sum(c in {"Action-Adventure", "Action-adventure"} for c in categorias), 1
+        )
+        self.assertEqual(
+            self.cliente.get("/api/categorias?anio=1990").status_code, 404
+        )
+        self.assertEqual(
+            self.cliente.get("/api/categorias?anio=sin-fecha").status_code, 200
+        )
+
+    def test_listado_usa_etag_y_responde_304(self):
+        primera = self.cliente.get("/api/videojuegos?anio=2026")
+        etag = primera.headers["ETag"]
+
+        segunda = self.cliente.get(
+            "/api/videojuegos?anio=2026", headers={"If-None-Match": etag}
+        )
+
+        self.assertEqual(segunda.status_code, 304)
+        self.assertEqual(segunda.data, b"")
+
+    def test_json_se_comprime_con_gzip_si_el_navegador_lo_acepta(self):
+        normal = self.cliente.get("/api/videojuegos?anio=2026")
+        comprimida = self.cliente.get(
+            "/api/videojuegos?anio=2026", headers={"Accept-Encoding": "gzip"}
+        )
+
+        self.assertEqual(comprimida.headers["Content-Encoding"], "gzip")
+        self.assertIn("Accept-Encoding", comprimida.headers["Vary"])
+        self.assertLess(len(comprimida.data), len(normal.data) / 3)
+        self.assertEqual(gzip.decompress(comprimida.data), normal.data)
+
+    def test_imagen_se_descarga_una_vez_y_despues_sale_de_cache(self):
+        upstream = MagicMock()
+        upstream.headers.get_content_type.return_value = "image/jpeg"
+        upstream.geturl.return_value = (
+            "https://i.3djuegos.com/juegos/17375/stray__2021_/"
+            "fotos/ficha/stray__2021_-5712395.jpg"
+        )
+        upstream.read.return_value = b"jpeg-image"
+        response_context = MagicMock()
+        response_context.__enter__.return_value = upstream
+        with patch(
+            f"{app.import_name}.urlopen", return_value=response_context
+        ) as fetch:
+            primera = self.cliente.get("/imagenes/stray")
+            segunda = self.cliente.get("/imagenes/stray")
+
+        self.assertEqual(fetch.call_count, 1)
+        self.assertEqual(primera.data, segunda.data)
+
+    def test_busqueda_filtrada_coincide_con_filtrado_manual(self):
+        catalogo = self.cliente.get("/api/videojuegos?anio=2023").get_json()
+        categoria = catalogo[0]["categoria"]
+        respuesta = self.cliente.get(
+            f"/api/videojuegos?anio=2023&categoria={categoria}"
+        ).get_json()
+
+        self.assertEqual(
+            [juego["id"] for juego in respuesta],
+            [
+                juego["id"]
+                for juego in catalogo
+                if modulo_app.normalizar_categoria(juego["categoria"])
+                == modulo_app.normalizar_categoria(categoria)
+            ],
+        )
 
 
 if __name__ == "__main__":

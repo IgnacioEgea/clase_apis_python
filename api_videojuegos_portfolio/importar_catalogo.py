@@ -461,28 +461,23 @@ def main() -> None:
     }
     with urlopen(Request(API_URL, headers=headers), timeout=45) as response:
         ps5_payload = json.load(response)
-    with urlopen(Request(VR2_API_URL, headers=headers), timeout=45) as response:
-        vr2_payload = json.load(response)
-
     ps5_records = records_from_html(ps5_payload["parse"]["text"]["*"])
-    vr2_records = records_from_html(
-        vr2_payload["parse"]["text"]["*"],
-        list_url=VR2_LIST_URL,
-        platform="PS5 · PS VR2",
-    )
-    source_keys = {normalize(game["titulo"]) for game in ps5_records + vr2_records}
+    # El catálogo excluye a propósito los juegos de PS VR2: no se descarga
+    # esa lista. Los juegos añadidos a mano o desde Wikidata ya están en los
+    # CSV y merge_existing los conserva.
+    source_keys = {normalize(game["titulo"]) for game in ps5_records}
     ps5_records.extend(
         {field: addition.get(field, "") for field in FIELDS}
         for addition in CURATED_ADDITIONS
         if normalize(addition["titulo"]) not in source_keys
     )
-    if len(ps5_records) < 1000 or len(vr2_records) < 400:
+    if len(ps5_records) < 1000:
         raise RuntimeError(
-            "Las fuentes devolvieron menos registros de los esperados; "
+            "La fuente devolvió menos registros de los esperados; "
             "no se reemplazaron los CSV."
         )
 
-    source_records = combine_source_records(ps5_records, vr2_records)
+    source_records = combine_source_records(ps5_records, [])
     existing = load_existing_records()
     records = merge_existing(
         source_records,
@@ -491,7 +486,6 @@ def main() -> None:
     )
     write_archives(records)
     print(f"Registros de PS5: {len(ps5_records)}")
-    print(f"Registros de PS VR2: {len(vr2_records)}")
     print(f"Títulos distintos en las fuentes: {len(source_records)}")
     print(f"Registros totales escritos: {len(records)}")
     print(f"Juegos Arknights: Endfield: {sum('arknights endfield' in normalize(g['titulo']) for g in records)}")

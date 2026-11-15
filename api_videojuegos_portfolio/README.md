@@ -1,7 +1,7 @@
-# Calendario de videojuegos PS5 y PS VR2
+# Calendario de videojuegos PS5
 
-API REST desarrollada con Flask para explorar lanzamientos de PlayStation 5 y
-PlayStation VR2. Incluye una interfaz web responsive, búsqueda y filtros,
+API REST desarrollada con Flask para explorar lanzamientos de PlayStation 5,
+desde grandes producciones hasta indies. Incluye una interfaz web responsive, búsqueda y filtros,
 fichas de videojuegos, consulta JSON y descarga del catálogo CSV.
 
 ## Funcionalidades
@@ -44,6 +44,7 @@ Abre <http://127.0.0.1:5000/>.
 | `GET` | `/api/anios` | Años de catálogo disponibles |
 | `GET` | `/api/videojuegos?anio=2026` | Juegos de un año |
 | `GET` | `/api/videojuegos?anio=2026&q=stray&categoria=Accion&mes=07` | Búsqueda y filtros |
+| `GET` | `/api/categorias?anio=2026` | Categorías disponibles de un año |
 | `GET` | `/api/videojuegos/<id>` | Ficha JSON de un videojuego |
 | `GET` | `/imagenes/<id>` | Imagen o ilustración alternativa |
 | `GET` | `/videojuegos.csv?anio=2026` | Descargar catálogo anual en CSV |
@@ -53,6 +54,17 @@ Ejemplo para consultar el catálogo:
 ```bash
 curl "http://127.0.0.1:5000/api/videojuegos?anio=2026"
 ```
+
+## Rendimiento
+
+- Los CSV se leen una sola vez al arrancar: se preparan el índice de búsqueda,
+  las categorías de cada año y el JSON de cada catálogo anual.
+- Las respuestas JSON llevan `ETag` (el navegador recibe `304` si no cambiaron)
+  y se comprimen con gzip cuando el navegador lo acepta.
+- Las portadas externas se guardan en una caché en memoria limitada a 48 MB,
+  así cada imagen se descarga de la fuente una sola vez por proceso.
+- El CSS y el JavaScript están en `static/` con una versión en la URL, para que
+  el navegador los guarde en caché y solo los vuelva a pedir cuando cambian.
 
 ## Pruebas
 
@@ -80,11 +92,26 @@ Para habilitarla, configura `CLIENTES_PASSWORD` y `API_CLIENTES_URL`, o bien
 `API_CLIENTES_HOST`. Usa HTTPS en producción y protege las variables como
 secretos del proveedor de despliegue.
 
+## Portadas
+
+Cada ficha intenta mostrar la portada real, en este orden: la imagen guardada
+en el CSV (3DJuegos, PlayStation o Metacritic), la portada del artículo de
+Wikipedia del juego y, si no hay artículo, la portada de Steam cuando el nombre
+coincide exactamente. La URL que funciona se recuerda en memoria y la imagen se
+guarda en caché; si no se encuentra ninguna, se muestra una ilustración
+sustitutiva. Las portadas siguen siendo propiedad de sus editores: se muestran
+solo para identificar cada juego en un proyecto universitario sin fines
+lucrativos, enlazando siempre a la fuente.
+
 ## Fuentes y atribución
 
-Los datos del catálogo se basan en las listas públicas de
-[juegos de PS5](https://en.wikipedia.org/wiki/List_of_PlayStation_5_games) y
-[juegos de PS VR2](https://en.wikipedia.org/wiki/List_of_PlayStation_VR2_games).
-Si redistribuyes los datos, respeta la licencia CC BY-SA y atribuye las fuentes.
+Los datos del catálogo combinan la
+[lista de juegos de PS5 de Wikipedia](https://en.wikipedia.org/wiki/List_of_PlayStation_5_games),
+los juegos de la [categoría de PS5 de Wikipedia](https://en.wikipedia.org/wiki/Category:PlayStation_5_games)
+que faltaban (con fecha de PS5, desarrollador y género de Wikidata) y fichas
+revisadas a mano. Los juegos exclusivos de realidad virtual (PS VR2) no se
+incluyen; los juegos normales con modo VR opcional, como Gran Turismo 7, se
+mantienen como PS5. Si redistribuyes los datos, respeta la licencia CC BY-SA
+de Wikipedia y atribuye las fuentes.
 Las fechas de lanzamiento pueden cambiar y las puntuaciones solo se muestran
 cuando hay una fuente registrada.

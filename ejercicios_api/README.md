@@ -70,16 +70,15 @@ sus pruebas con:
 python -m unittest discover -s ejercicios_api/api_videojuegos/tests -v
 ```
 
-El catálogo combina las listas de juegos nativos de PS5 y PS VR2 de Wikipedia
-(1.128 y 438 registros en la última importación, con títulos coincidentes
-deduplicados), incluyendo multiplataforma, desde 2020. Los datos de 2020–2025 están guardados como
+El catálogo combina la lista de juegos de PS5 de Wikipedia con los juegos de su
+categoría de PS5 que faltaban (1.689 juegos en la última actualización, sin
+juegos exclusivos de PS VR2), incluyendo multiplataforma, desde 2020. Los datos de 2020–2025 están guardados como
 `videojuegos_<año>.csv.gz`; los años recientes se mantienen en CSV sin
 comprimir. Los anuncios sin fecha confirmada se guardan en
 `videojuegos_sin_fecha.csv`, sin asignarles una fecha estimada. Cada fila
 conserva un enlace de fuente, desarrollador y género cuando están disponibles.
-Todas las fichas muestran una imagen: se usa arte o carátula real cuando está
-disponible y, en los demás casos, una imagen sustitutiva que indica claramente
-que no se ha encontrado el original. Las imágenes se sirven desde la API para
+Todas las fichas muestran una imagen: la portada guardada, la del artículo de
+Wikipedia o la de Steam, y una imagen sustitutiva solo si no se encuentra ninguna. Las imágenes se sirven desde la API para
 evitar bloqueos del navegador.
 La ficha puede mostrar puntuaciones verificadas de 3DJuegos, Vandal, Metacritic
 y Hobby Consolas; los valores ausentes no se rellenan como cero. Al 24/10/2026,
@@ -95,5 +94,5 @@ python ejercicios_api/api_videojuegos/importar_catalogo.py
 ```
 
 Las fuentes son la [lista de juegos de PS5](https://en.wikipedia.org/wiki/List_of_PlayStation_5_games)
-y la [lista de PS VR2](https://en.wikipedia.org/wiki/List_of_PlayStation_VR2_games);
+y [Wikidata](https://www.wikidata.org/) para los juegos añadidos;
 al redistribuir sus datos hay que respetar CC BY-SA y atribuir las fuentes.

@@ -1,6 +1,6 @@
 # Calendario de videojuegos PS5
 
-API Flask independiente para consultar un catálogo de juegos de PS5 y PS VR2.
+API Flask independiente para consultar un catálogo de juegos de PS5 (sin juegos de PS VR2).
 Los datos están archivados por año en CSV (comprimidos cuando corresponde) y la
 API genera JSON bajo demanda. Al iniciar el servidor, el catálogo se carga una
 vez en memoria para evitar releer los CSV en cada petición. Reinicia el proceso
@@ -52,6 +52,7 @@ el puerto que Render proporciona por la variable `PORT`.
 - `GET /api/anios`: años disponibles.
 - `GET /api/videojuegos?anio=2026`: catálogo de un año.
 - `GET /api/videojuegos?anio=2026&q=stray&categoria=Accion&mes=07`: búsqueda y filtros.
+- `GET /api/categorias?anio=2026`: categorías disponibles de un año.
 - `GET /api/videojuegos/<id>`: ficha JSON.
 - `GET /imagenes/<id>`: imagen de alta resolución o una ilustración identificada
   cuando no se dispone de arte original.
@@ -70,10 +71,27 @@ presenta como orientativa porque las fuentes pueden usar criterios diferentes.
 python importar_catalogo.py
 ```
 
-El importador consulta las listas públicas de PS5 y PS VR2. Las fuentes de datos
-son [Wikipedia: PS5](https://en.wikipedia.org/wiki/List_of_PlayStation_5_games)
-y [Wikipedia: PS VR2](https://en.wikipedia.org/wiki/List_of_PlayStation_VR2_games).
-Respeta la licencia CC BY-SA al redistribuir los datos.
+El importador consulta la lista pública de PS5 de Wikipedia y conserva los juegos
+añadidos a mano. Los datos del catálogo combinan la
+[lista de juegos de PS5 de Wikipedia](https://en.wikipedia.org/wiki/List_of_PlayStation_5_games),
+los juegos de la [categoría de PS5 de Wikipedia](https://en.wikipedia.org/wiki/Category:PlayStation_5_games)
+que faltaban (con fecha de PS5, desarrollador y género de Wikidata) y fichas
+revisadas a mano. Los juegos exclusivos de realidad virtual (PS VR2) no se
+incluyen; los juegos normales con modo VR opcional, como Gran Turismo 7, se
+mantienen como PS5. Si redistribuyes los datos, respeta la licencia CC BY-SA
+de Wikipedia y atribuye las fuentes.
+
+## Portadas
+
+Cada ficha intenta mostrar la portada real, en este orden: la imagen guardada
+en el CSV (3DJuegos, PlayStation o Metacritic), la portada del artículo de
+Wikipedia del juego y, si no hay artículo, la portada de Steam cuando el nombre
+coincide exactamente. La URL que funciona se recuerda en memoria y la imagen se
+guarda en caché; si no se encuentra ninguna, se muestra una ilustración
+sustitutiva. Las portadas siguen siendo propiedad de sus editores: se muestran
+solo para identificar cada juego en un proyecto universitario sin fines
+lucrativos, enlazando siempre a la fuente.
+
 
 ## Pruebas
 
