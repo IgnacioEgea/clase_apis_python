@@ -553,8 +553,11 @@ class ApiVideojuegosTests(unittest.TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         juego = respuesta.get_json()
-        # La miniatura de 140x105 se sustituyó por el arte oficial de PlayStation.
-        self.assertTrue(juego["imagen_url"].startswith("https://image.api.playstation.com/"))
+        # Portada vertical oficial en alta resolución, no la miniatura de 140x105.
+        self.assertEqual(
+            juego["imagen_url"],
+            "https://images.igdb.com/igdb/image/upload/t_cover_big_2x/cod4kv.jpg",
+        )
         self.assertEqual(juego["puntuacion_3djuegos"], "8.4")
         self.assertEqual(juego["votos_3djuegos"], "15")
         self.assertEqual(juego["puntuacion_metacritic_criticos"], "78")
