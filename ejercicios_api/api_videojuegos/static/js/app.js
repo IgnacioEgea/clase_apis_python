@@ -30,7 +30,18 @@
     "en.wikipedia.org": "Wikipedia",
     "www.3djuegos.com": "3DJuegos",
     "www.metacritic.com": "Metacritic",
+    "www.igdb.com": "IGDB",
   };
+
+  // La URL de cada portada lleva una huella de su origen: si cambiamos la
+  // imagen de un juego, el navegador no reutiliza la versión antigua de su caché.
+  function coverVersion(game) {
+    let hash = 0;
+    for (const char of String(game.imagen_url || "")) {
+      hash = (hash * 31 + char.codePointAt(0)) >>> 0;
+    }
+    return hash.toString(36);
+  }
 
   function describeCoverSource(game) {
     try {
@@ -675,7 +686,7 @@
     detailImage.onerror = null;
     detailImage.removeAttribute("src");
     const version = selectionVersion;
-    const coverUrl = `/imagenes/${encodeURIComponent(game.id)}`;
+    const coverUrl = `/imagenes/${encodeURIComponent(game.id)}?v=${coverVersion(game)}`;
     detailImage.alt = `Portada de ${game.titulo}`;
     coverZoom.setAttribute("aria-label", `Ampliar imagen de ${game.titulo}`);
     gameDetail.classList.add("with-cover");

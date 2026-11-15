@@ -53,6 +53,7 @@ IMAGE_HOSTS = frozenset({
     "gmedia.playstation.com",
     "www.metacritic.com",
     "upload.wikimedia.org",
+    "images.igdb.com",
     "shared.akamai.steamstatic.com",
     "cdn.akamai.steamstatic.com",
     "shared.fastly.steamstatic.com",
