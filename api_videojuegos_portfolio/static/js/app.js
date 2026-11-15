@@ -23,6 +23,23 @@
   const catalogResults = document.getElementById("catalog-results");
   const backToListTop = document.getElementById("back-to-list-top");
   const detailImage = document.getElementById("detail-image");
+  const coverSource = document.getElementById("cover-source");
+  const coverHosts = {
+    "store.steampowered.com": "Steam",
+    "store.playstation.com": "PlayStation Store",
+    "en.wikipedia.org": "Wikipedia",
+    "www.3djuegos.com": "3DJuegos",
+    "www.metacritic.com": "Metacritic",
+  };
+
+  function describeCoverSource(game) {
+    try {
+      const host = new URL(game.fuente_imagen).hostname;
+      return `Portada oficial · ${coverHosts[host] || host}`;
+    } catch {
+      return "Portada oficial";
+    }
+  }
   const gameCover = document.getElementById("game-cover");
   const coverZoom = document.getElementById("cover-zoom");
   const coverDialog = document.getElementById("cover-dialog");
@@ -651,28 +668,36 @@
     }
     gameCover.hidden = false;
     gameDetail.classList.remove("with-cover");
-    gameCover.classList.remove("is-artwork");
+    gameCover.classList.remove("fit-contain");
+    gameCover.classList.add("is-loading");
+    gameCover.style.removeProperty("--cover-image");
     detailImage.onload = null;
     detailImage.onerror = null;
     detailImage.removeAttribute("src");
     const version = selectionVersion;
+    const coverUrl = `/imagenes/${encodeURIComponent(game.id)}`;
     detailImage.alt = `Portada de ${game.titulo}`;
     coverZoom.setAttribute("aria-label", `Ampliar imagen de ${game.titulo}`);
     gameDetail.classList.add("with-cover");
     detailImage.onload = () => {
-      if (version === selectionVersion) {
-        gameCover.classList.toggle(
-          "is-artwork",
-          detailImage.naturalWidth / detailImage.naturalHeight > 1.05
-        );
-        status.textContent = `Ficha de ${game.titulo} lista.`;
-      }
+      if (version !== selectionVersion) return;
+      // Las portadas casi verticales (entre 3:5 y 4:5) llenan el marco 2:3;
+      // el resto se muestra entero sobre un fondo desenfocado.
+      const ratio = detailImage.naturalWidth / detailImage.naturalHeight;
+      gameCover.classList.toggle("fit-contain", ratio < 0.6 || ratio > 0.8);
+      gameCover.style.setProperty("--cover-image", `url("${coverUrl}")`);
+      gameCover.classList.remove("is-loading");
+      coverSource.textContent = String(game.imagen_url || "").startsWith("/imagenes/")
+        ? "Portada ilustrativa: no hay arte oficial disponible para este juego."
+        : describeCoverSource(game);
+      status.textContent = `Ficha de ${game.titulo} lista.`;
     };
     detailImage.onerror = () => {
       if (version !== selectionVersion) return;
+      gameCover.classList.remove("is-loading");
       status.textContent = `No se pudo cargar la imagen de ${game.titulo}.`;
     };
-    detailImage.src = `/imagenes/${encodeURIComponent(game.id)}`;
+    detailImage.src = coverUrl;
 
     gameDetail.hidden = false;
     output.textContent = JSON.stringify(game, null, 2);

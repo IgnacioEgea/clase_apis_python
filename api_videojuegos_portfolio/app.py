@@ -278,29 +278,73 @@ def filtrar_videojuegos(
         yield videojuego
 
 
-def renderizar_imagen_sustitutiva(titulo: str) -> str:
-    texto = html.escape(titulo)
+def partir_titulo(titulo: str, ancho: int = 15, max_lineas: int = 4) -> list[str]:
+    lineas: list[str] = []
+    for palabra in titulo.split():
+        if lineas and len(lineas[-1]) + 1 + len(palabra) <= ancho:
+            lineas[-1] += " " + palabra
+        else:
+            lineas.append(palabra)
+    if len(lineas) > max_lineas:
+        lineas = lineas[:max_lineas]
+        lineas[-1] = lineas[-1][: ancho - 1].rstrip() + "…"
+    return lineas
+
+
+def renderizar_imagen_sustitutiva(videojuego: dict[str, str] | str) -> str:
+    """Portada ilustrativa 2:3 para los juegos sin arte oficial localizable.
+
+    Los colores salen del título, así que cada juego tiene siempre la misma
+    portada y dos juegos distintos casi nunca coinciden.
+    """
+    if isinstance(videojuego, str):
+        videojuego = {"titulo": videojuego}
+    titulo = videojuego.get("titulo", "") or "Videojuego"
+    semilla = int(hashlib.sha256(titulo.encode()).hexdigest()[:8], 16)
+    tono = semilla % 360
+    tono2 = (tono + 35 + semilla % 50) % 360
+    lineas = partir_titulo(titulo)
+    tam = 92 if max(map(len, lineas)) <= 10 else 76
+    inicio = 760 - (len(lineas) - 1) * tam * 0.55
+    texto_titulo = "".join(
+        f'<text x="80" y="{inicio + i * tam * 1.1:.0f}" fill="#fff" '
+        f'font-family="Arial Black,Arial,sans-serif" font-size="{tam}" '
+        f'font-weight="900">{html.escape(linea)}</text>'
+        for i, linea in enumerate(lineas)
+    )
+    categoria = (videojuego.get("categoria", "") or "").split("·")[0].strip()
+    anio = videojuego.get("anio_salida", "") or ""
+    pie = " · ".join(dato for dato in (categoria.upper(), anio) if dato)
     return (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1350" '
-        'role="img" aria-label="Imagen no disponible para '
-        f'{html.escape(titulo, quote=True)}">'
-        '<defs><linearGradient id="fondo" x2="1" y2="1">'
-        '<stop stop-color="#123c49"/><stop offset="1" stop-color="#091b2b"/>'
-        '</linearGradient></defs><rect width="900" height="1350" '
-        'fill="url(#fondo)"/><circle cx="450" cy="450" r="220" '
-        'fill="none" stroke="#57c3aa" stroke-width="10" opacity=".7"/>'
-        '<path d="M280 480h340l-55 170H335z" fill="#57c3aa" opacity=".8"/>'
-        '<text x="450" y="790" text-anchor="middle" fill="#fff" '
-        'font-family="Arial,sans-serif" font-size="46" font-weight="700">'
-        f'{texto}</text><text x="450" y="890" text-anchor="middle" '
-        'fill="#b5ced2" font-family="Arial,sans-serif" font-size="25">'
-        'IMAGEN ORIGINAL NO DISPONIBLE</text></svg>'
+        f'role="img" aria-label="Portada ilustrativa de {html.escape(titulo, quote=True)}">'
+        f'<defs><linearGradient id="f" x1="0" y1="0" x2="1" y2="1">'
+        f'<stop stop-color="hsl({tono},62%,30%)"/>'
+        f'<stop offset="1" stop-color="hsl({tono2},70%,9%)"/></linearGradient>'
+        '<radialGradient id="l" cx=".75" cy=".2" r=".7">'
+        '<stop stop-color="#fff" stop-opacity=".28"/>'
+        '<stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>'
+        '<rect width="900" height="1350" fill="url(#f)"/>'
+        '<rect width="900" height="1350" fill="url(#l)"/>'
+        f'<circle cx="{620 + semilla % 160}" cy="{300 + semilla % 140}" r="230" '
+        'fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="28"/>'
+        f'<path d="M0 {1010 + semilla % 90} L900 {880 + semilla % 120} L900 1350 L0 1350Z" '
+        'fill="#000" fill-opacity=".28"/>'
+        '<rect x="80" y="80" width="150" height="64" rx="10" fill="#fff"/>'
+        '<text x="155" y="125" text-anchor="middle" fill="#0b1b2b" '
+        'font-family="Arial,sans-serif" font-size="34" font-weight="700">PS5</text>'
+        f'{texto_titulo}'
+        f'<text x="80" y="1180" fill="#fff" fill-opacity=".85" '
+        f'font-family="Arial,sans-serif" font-size="34" letter-spacing="3">{html.escape(pie)}</text>'
+        '<text x="80" y="1260" fill="#fff" fill-opacity=".55" '
+        'font-family="Arial,sans-serif" font-size="24" letter-spacing="4">'
+        'PORTADA ILUSTRATIVA</text></svg>'
     )
 
 
-def imagen_sustitutiva_response(titulo: str) -> Response:
+def imagen_sustitutiva_response(videojuego: dict[str, str] | str) -> Response:
     return Response(
-        renderizar_imagen_sustitutiva(titulo),
+        renderizar_imagen_sustitutiva(videojuego),
         mimetype="image/svg+xml",
         headers={
             # Corto para que el navegador vuelva a intentarlo si la fuente
@@ -847,7 +891,7 @@ def obtener_imagen_real(videojuego_id: str):
         return jsonify({"error": "Videojuego no encontrado."}), 404
     portada = obtener_portada(videojuego)
     if portada is None:
-        return imagen_sustitutiva_response(videojuego["titulo"])
+        return imagen_sustitutiva_response(videojuego)
     content, content_type = portada
     return Response(
         content,

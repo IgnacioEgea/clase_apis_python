@@ -448,7 +448,8 @@ class ApiVideojuegosTests(unittest.TestCase):
         juego = respuesta.get_json()
         self.assertEqual(juego["titulo"], "Ghost of Yōtei")
         self.assertEqual(juego["fecha_salida"], "2025-10-02")
-        self.assertTrue(juego["imagen_url"].endswith("ghost_of_yotei-5923135.jpg"))
+        self.assertTrue(juego["imagen_url"].startswith("https://image.api.playstation.com/"))
+        self.assertIn("store.playstation.com", juego["fuente_imagen"])
         self.assertEqual(juego["puntuacion_3djuegos"], "8.7")
         self.assertEqual(juego["votos_3djuegos"], "60")
         self.assertEqual(juego["puntuacion_metacritic_criticos"], "86")
@@ -459,7 +460,7 @@ class ApiVideojuegosTests(unittest.TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         juego = respuesta.get_json()
-        self.assertTrue(juego["imagen_url"].endswith("monster_hunter_wilds-5856980.jpg"))
+        self.assertTrue(juego["imagen_url"].endswith("/library_600x900_2x.jpg"))
         self.assertEqual(juego["puntuacion_3djuegos"], "8.8")
         self.assertEqual(juego["votos_3djuegos"], "22")
         self.assertEqual(juego["puntuacion_metacritic_criticos"], "88")
@@ -487,14 +488,14 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertEqual(respuesta.headers["Cache-Control"], "public, max-age=86400")
 
     def test_imagen_metacritic_se_sirve_desde_la_api(self):
-        game = self.cliente.get("/api/videojuegos/one-piece-odyssey").get_json()
+        game = self.cliente.get("/api/videojuegos/demon-s-souls").get_json()
         self.assertIn("www.metacritic.com/a/img/", game["imagen_url"])
 
         upstream = MagicMock()
         upstream.headers.get_content_type.return_value = "image/jpeg"
         upstream.geturl.return_value = (
             "https://www.metacritic.com/a/img/catalog/provider/"
-            "6/3/6-1-916442-13.jpg"
+            "6/3/6-1-773856-13.jpg"
         )
         upstream.read.return_value = b"metacritic-image"
         response_context = MagicMock()
@@ -503,13 +504,13 @@ class ApiVideojuegosTests(unittest.TestCase):
             f"{app.import_name}.urlopen",
             return_value=response_context,
         ) as fetch:
-            respuesta = self.cliente.get("/imagenes/one-piece-odyssey")
+            respuesta = self.cliente.get("/imagenes/demon-s-souls")
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.data, b"metacritic-image")
         self.assertEqual(
             fetch.call_args.args[0].full_url,
-            "https://www.metacritic.com/a/img/catalog/provider/6/3/6-1-916442-13.jpg",
+            "https://www.metacritic.com/a/img/catalog/provider/6/3/6-1-773856-13.jpg",
         )
 
     def test_url_metacritic_usa_imagen_original_en_alta_resolucion(self):
@@ -552,7 +553,8 @@ class ApiVideojuegosTests(unittest.TestCase):
 
         self.assertEqual(respuesta.status_code, 200)
         juego = respuesta.get_json()
-        self.assertTrue(juego["imagen_url"].endswith("arknights_endfield-5856097.jpg"))
+        # La miniatura de 140x105 se sustituyó por el arte oficial de PlayStation.
+        self.assertTrue(juego["imagen_url"].startswith("https://image.api.playstation.com/"))
         self.assertEqual(juego["puntuacion_3djuegos"], "8.4")
         self.assertEqual(juego["votos_3djuegos"], "15")
         self.assertEqual(juego["puntuacion_metacritic_criticos"], "78")
@@ -571,13 +573,14 @@ class ApiVideojuegosTests(unittest.TestCase):
             f"{app.import_name}.leer_json_externo",
             side_effect=URLError("sin conexión"),
         ):
-            respuesta = self.cliente.get("/imagenes/sea-of-stars")
+            respuesta = self.cliente.get("/imagenes/cazzarion-sky-flight")
 
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.mimetype, "image/svg+xml")
         self.assertEqual(respuesta.headers["X-Image-Fallback"], "true")
-        self.assertIn(b"Sea of Stars", respuesta.data)
-        self.assertIn(b"IMAGEN ORIGINAL NO DISPONIBLE", respuesta.data)
+        self.assertIn(b"Cazzarion: Sky Flight", respuesta.data)
+        self.assertIn(b"PORTADA ILUSTRATIVA", respuesta.data)
+        self.assertIn(b'viewBox="0 0 900 1350"', respuesta.data)
 
     def test_portada_se_obtiene_de_wikipedia(self):
         wikipedia = {
@@ -590,7 +593,13 @@ class ApiVideojuegosTests(unittest.TestCase):
         }
         url = "https://upload.wikimedia.org/wikipedia/en/thumb/a/ab/Sea_of_Stars.jpg/600px-Sea_of_Stars.jpg"
         contexto, _ = self.respuesta_imagen(b"wiki", url_final=url)
-        with patch(
+        juego = {
+            "id": "sea-of-stars",
+            "titulo": "Sea of Stars",
+            "fuente": "https://en.wikipedia.org/wiki/Sea_of_Stars",
+            "imagen_url": "/imagenes/sea-of-stars",
+        }
+        with patch(f"{app.import_name}.buscar_videojuego", return_value=juego), patch(
             f"{app.import_name}.leer_json_externo", return_value=wikipedia
         ) as buscar, patch(
             f"{app.import_name}.urlopen", return_value=contexto
@@ -631,7 +640,13 @@ class ApiVideojuegosTests(unittest.TestCase):
 
     def test_portada_rechaza_hosts_no_permitidos(self):
         wikipedia = {"query": {"pages": [{"thumbnail": {"source": "https://evil.example/x.jpg"}}]}}
-        with patch(
+        juego = {
+            "id": "sea-of-stars",
+            "titulo": "Sea of Stars",
+            "fuente": "https://en.wikipedia.org/wiki/Sea_of_Stars",
+            "imagen_url": "/imagenes/sea-of-stars",
+        }
+        with patch(f"{app.import_name}.buscar_videojuego", return_value=juego), patch(
             f"{app.import_name}.leer_json_externo",
             side_effect=[wikipedia, {"items": []}],
         ), patch(f"{app.import_name}.urlopen") as descargar:
@@ -852,6 +867,30 @@ class ApiVideojuegosTests(unittest.TestCase):
                 == modulo_app.normalizar_categoria(categoria)
             ],
         )
+
+    def test_portadas_guardadas_vienen_de_fuentes_permitidas(self):
+        hosts = set()
+        sin_arte = 0
+        for anio in ["2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "sin-fecha"]:
+            for juego in self.cliente.get(f"/api/videojuegos?anio={anio}").get_json():
+                url = juego["imagen_url"]
+                if url.startswith("/imagenes/"):
+                    sin_arte += 1
+                    continue
+                self.assertIsNotNone(modulo_app.url_imagen_permitida(url), url)
+                hosts.add(modulo_app.urlsplit(url).hostname)
+        self.assertIn("image.api.playstation.com", hosts)
+        self.assertIn("shared.akamai.steamstatic.com", hosts)
+        # Casi todo el catálogo tiene arte oficial; el resto usa la portada ilustrativa.
+        self.assertLess(sin_arte, 100)
+
+    def test_portada_ilustrativa_es_vertical_y_estable(self):
+        juego = {"titulo": "Juego <Prueba>", "categoria": "Puzzle · Casual", "anio_salida": "2024"}
+        primera = modulo_app.renderizar_imagen_sustitutiva(juego)
+        self.assertEqual(primera, modulo_app.renderizar_imagen_sustitutiva(juego))
+        self.assertIn('viewBox="0 0 900 1350"', primera)
+        self.assertIn("Juego &lt;Prueba&gt;", primera)
+        self.assertIn("PUZZLE · 2024", primera)
 
 
 if __name__ == "__main__":

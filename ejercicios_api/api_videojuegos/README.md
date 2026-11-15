@@ -83,15 +83,22 @@ de Wikipedia y atribuye las fuentes.
 
 ## Portadas
 
-Cada ficha intenta mostrar la portada real, en este orden: la imagen guardada
-en el CSV (3DJuegos, PlayStation o Metacritic), la portada del artículo de
-Wikipedia del juego y, si no hay artículo, la portada de Steam cuando el nombre
-coincide exactamente. La URL que funciona se recuerda en memoria y la imagen se
-guarda en caché; si no se encuentra ninguna, se muestra una ilustración
-sustitutiva. Las portadas siguen siendo propiedad de sus editores: se muestran
-solo para identificar cada juego en un proyecto universitario sin fines
-lucrativos, enlazando siempre a la fuente.
+Cada juego guarda en el CSV la URL de su portada oficial. Se eligió la mejor
+versión disponible de cada una, comprobando que el nombre coincide con el juego:
 
+1. Arte vertical 2:3 de **Steam** (600×900) o de la **PlayStation Store**
+   (portada vertical o, si no existe, el arte cuadrado oficial).
+2. Las imágenes que ya tenía el catálogo (3DJuegos, PlayStation, Metacritic)
+   cuando tienen buena resolución.
+3. La portada del artículo de **Wikipedia** como último recurso.
+
+En la ficha todas se muestran en el mismo marco vertical 2:3: las verticales
+lo llenan y las cuadradas o apaisadas se ven enteras sobre un fondo
+desenfocado de la propia imagen. Los pocos juegos sin arte oficial localizable
+muestran una portada ilustrativa generada (colores propios, título, género y
+año) marcada como tal. Las portadas siguen siendo propiedad de sus editores: se
+muestran solo para identificar cada juego en un proyecto universitario sin
+fines lucrativos, enlazando siempre a la fuente.
 
 ## Pruebas
 

@@ -317,11 +317,17 @@ code, .route { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monos
 .rating-legend-value { color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rating-legend-empty { color: var(--muted); font-size: 11px; }
 .ratings-note { color: var(--muted); font-size: 10px; line-height: 1.5; margin: 10px 0 0; }
-.game-cover { align-items: center; aspect-ratio: 2 / 3; background: linear-gradient(150deg, #e9f2f0, #dbe7eb); border-radius: 10px; display: flex; flex-direction: column; justify-content: center; justify-self: end; margin: 0; max-width: 220px; overflow: hidden; width: 100%; }
+/* Todas las portadas comparten el mismo marco vertical 2:3. Las portadas
+   verticales lo llenan; las cuadradas o apaisadas se muestran enteras sobre
+   un fondo desenfocado de la propia imagen, sin recortes ni deformaciones. */
+.game-cover { justify-self: end; margin: 0; max-width: 240px; width: 100%; }
 .game-cover[hidden] { display: none; }
-.cover-zoom { background: transparent; border: 0; cursor: zoom-in; flex: 1; min-height: 0; padding: 0; width: 100%; }
-.game-cover img { display: block; height: 100%; object-fit: contain; width: 100%; }
-.game-cover.is-artwork { aspect-ratio: 16 / 10; }
+.cover-zoom { aspect-ratio: 2 / 3; background: linear-gradient(150deg, #e9f2f0, #dbe7eb); border: 0; border-radius: 12px; box-shadow: 0 14px 30px rgb(16 43 63 / 22%); cursor: zoom-in; display: block; overflow: hidden; padding: 0; position: relative; width: 100%; }
+.cover-zoom::before { background-image: var(--cover-image, none); background-position: center; background-size: cover; content: ""; filter: blur(18px) saturate(1.2); inset: -24px; opacity: 0; position: absolute; transition: opacity .25s ease; }
+.game-cover.fit-contain .cover-zoom::before { opacity: .75; }
+.game-cover img { display: block; height: 100%; object-fit: cover; object-position: center top; position: relative; width: 100%; }
+.game-cover.fit-contain img { object-fit: contain; object-position: center; }
+.game-cover.is-loading img { opacity: 0; }
 .image-caption { color: var(--muted); font-size: 10px; line-height: 1.3; margin: 0; padding: 5px 7px; text-align: center; }
 .cover-dialog { background: #071a27; border: 1px solid rgb(255 255 255 / 25%); border-radius: 14px; color: white; height: min(92vh, 1100px); max-height: 92vh; max-width: min(92vw, 760px); padding: 14px; width: min(92vw, 760px); }
 .cover-dialog::backdrop { background: rgb(2 15 24 / 88%); }
@@ -402,7 +408,7 @@ footer { align-items: stretch; border-top: 1px solid var(--line); color: var(--m
   .game-list { max-height: 340px; }
   .game-detail { grid-template-columns: 1fr; }
   .detail-meta { grid-template-columns: 1fr; }
-  .game-cover { grid-row: 1; max-height: 290px; }
+  .game-cover { grid-row: 1; justify-self: center; max-width: 200px; }
   .rating-donut { flex-basis: 126px; height: 126px; width: 126px; }
 }
 
@@ -622,9 +628,9 @@ footer { align-items: stretch; border-top: 1px solid var(--line); color: var(--m
 .theme-gamer .rating-donut-text,
 .theme-gamer .rating-legend-value { fill: #f1f2ff; color: #f1f2ff; }
 .theme-gamer .ratings-section { border-color: #292d44; }
-.theme-gamer .game-cover {
+.theme-gamer .cover-zoom {
   background: linear-gradient(145deg, #20243a, #111424);
-  border: 1px solid #343950;
+  box-shadow: 0 0 0 1px #343950, 0 14px 30px rgb(0 0 0 / 40%);
 }
 .theme-gamer .json-panel,
 .theme-gamer .example-code { background: #090b14; }
