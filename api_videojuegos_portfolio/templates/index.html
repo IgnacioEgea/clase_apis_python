@@ -66,7 +66,8 @@
           <details class="guide-step">
             <summary><span class="guide-number">02</span>Busca y filtra</summary>
             <div class="guide-step-content">
-              <p>Escribe el nombre o parte del título. Despliega los filtros opcionales para limitar por categoría o mes y ordenar por fecha; después pulsa «Buscar».</p>
+              <p>¿Buscas ideas? En «Descubre juegos» tienes colecciones como los mejor valorados o los GOTY. <a href="#descubrir">Ir a Descubre juegos</a>.</p>
+              <p>Si ya sabes qué quieres, escribe el nombre o parte del título. Despliega los filtros opcionales para limitar por categoría o mes y ordenar por fecha; después pulsa «Buscar».</p>
             </div>
           </details>
           <details class="guide-step">
@@ -124,6 +125,13 @@
             <a class="endpoint-link" href="{{ url_for('obtener_videojuego', videojuego_id='phantom-blade-zero') }}" target="_blank" rel="noopener">Abrir Phantom Blade Zero en otra pestaña →</a>
           </article>
           <article class="endpoint">
+            <span class="method">GET · JSON</span>
+            <h3>Descubrir juegos</h3>
+            <p>Colecciones listas para explorar: mejor valorados, más descargados, GOTY, más esperados, novedades y DLC. Admiten <code>genero</code>, <code>anio</code> y <code>limite</code>.</p>
+            <code class="route">/api/descubrir/mejor-valorados?genero=rol</code>
+            <a class="endpoint-link" href="{{ url_for('obtener_coleccion', slug_coleccion='goty') }}" target="_blank" rel="noopener">Abrir los GOTY en otra pestaña →</a>
+          </article>
+          <article class="endpoint">
             <span class="method">GET · CSV</span>
             <h3>Descargar el archivo anual</h3>
             <p>Los datos se conservan en CSV; descarga el año que te interese.</p>
@@ -158,6 +166,35 @@
           <ul class="favorites-list" id="favorites-list" aria-label="Videojuegos favoritos"></ul>
           <p class="favorites-message" id="favorites-message" role="status"></p>
         </section>
+      </section>
+
+      <section class="panel discover" id="descubrir" aria-labelledby="discover-title">
+        <h2 id="discover-title">Descubre juegos</h2>
+        <p>¿No sabes qué buscar? Elige una colección: los mejor valorados, los más descargados, los GOTY, los más esperados o las expansiones. Puedes afinarla por género y año.</p>
+        <div class="discover-chips" role="group" aria-label="Colecciones">
+          {% for coleccion in colecciones %}
+          <button class="discover-chip" type="button" data-collection="{{ coleccion.slug }}" aria-pressed="false" title="{{ coleccion.descripcion }}">{{ coleccion.titulo }}</button>
+          {% endfor %}
+        </div>
+        <div class="discover-filters">
+          <label class="filter-field" for="discover-genre">Género
+            <select id="discover-genre">
+              <option value="">Todos los géneros</option>
+              {% for slug_genero, nombre in generos %}
+              <option value="{{ slug_genero }}">{{ nombre }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="filter-field" for="discover-year">Año
+            <select id="discover-year">
+              <option value="">Todos los años</option>
+              {% for anio in anios|reverse %}
+              <option value="{{ anio }}">{{ anio }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <p class="discover-description" id="discover-description" aria-live="polite">Selecciona una colección para ver los juegos en Resultados.</p>
       </section>
 
       <section class="panel calendar-search" aria-labelledby="calendar-search-title">

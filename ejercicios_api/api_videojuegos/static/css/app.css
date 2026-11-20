@@ -208,7 +208,7 @@ h1 { font-size: clamp(34px, 5vw, 54px); letter-spacing: -.045em; line-height: 1.
 .stat-label { color: var(--muted); font-size: 13px; }
 .stat-value { display: block; font-size: 24px; font-weight: 760; letter-spacing: -.03em; margin-top: 2px; }
 
-.endpoint-grid { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); }
+.endpoint-grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .endpoint { display: flex; flex-direction: column; min-height: 220px; padding: 20px; }
 .method { background: var(--mint); border-radius: 6px; color: var(--teal-dark); font-size: 11px; font-weight: 800; letter-spacing: .08em; padding: 4px 8px; width: fit-content; }
 .endpoint h3 { font-size: 16px; margin: 15px 0 5px; }
@@ -696,9 +696,29 @@ body[data-format="panoramica"] .topbar-inner { max-width: 1680px; }
   body[data-format="tablet"] .catalog-results.has-selection { grid-template-columns: minmax(0, 1fr); }
   body[data-format="tablet"] .catalog-results.has-selection .game-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: 420px; }
   body[data-format="panoramica"] .hero { grid-template-columns: minmax(0, 1.65fr) minmax(220px, .55fr); }
-  body[data-format="panoramica"] .endpoint-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  body[data-format="panoramica"] .endpoint-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
   body[data-format="movil"] .catalog-results:not(.has-selection) .game-list,
   body[data-format="movil"] .catalog-results.has-selection .game-list { grid-template-columns: 1fr; }
 }
+
+/* Descubre juegos */
+.discover { margin-bottom: 22px; }
+.discover-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.discover-chip { background: var(--paper); border: 1px solid var(--line); border-radius: 999px; color: var(--ink); cursor: pointer; font: inherit; font-size: 13px; font-weight: 700; padding: 8px 14px; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+.discover-chip:hover { background: var(--mint); border-color: #79bdb1; }
+.discover-chip[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: white; }
+.discover-filters { display: flex; flex-wrap: wrap; gap: 12px; }
+.discover-filters .filter-field { min-width: 180px; }
+.discover-description { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 12px 0 0; }
+.discover-description strong { color: var(--ink); }
+.game-card-title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.game-badge { align-self: flex-start; background: var(--mint); border-radius: 999px; color: var(--teal-dark); font-size: 10px; font-weight: 750; line-height: 1.3; padding: 2px 8px; }
+.game-rank { color: var(--teal-dark); font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 800; }
+.theme-gamer .discover-chip { background: var(--paper); border-color: var(--line); color: var(--ink); }
+.theme-gamer .discover-chip:hover { background: var(--mint); border-color: var(--teal); }
+.theme-gamer .discover-chip[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: #080a12; }
+.theme-gamer .game-badge { background: var(--mint); color: var(--teal-dark); }
+/* En la lista lateral (flex) las tarjetas con insignia no deben encogerse. */
+.game-list .game-card { flex-shrink: 0; }

@@ -201,7 +201,8 @@ def cargar_catalogo() -> None:
 
 
 def buscar_videojuego(videojuego_id: str) -> dict[str, str] | None:
-    return VIDEOJUEGOS_POR_ID.get(videojuego_id)
+    # Las expansiones y los juegos citados en colecciones también tienen ficha.
+    return VIDEOJUEGOS_POR_ID.get(videojuego_id) or EXTRAS_POR_ID.get(videojuego_id)
 
 
 def normalizar_texto(texto: str) -> str:
@@ -801,6 +802,8 @@ def render_home(gamer_mode: bool):
             tiene_sin_fecha="sin_fecha" in ARCHIVOS,
             anio_inicial=anio_inicial,
             gamer_mode=gamer_mode,
+            colecciones=COLECCIONES,
+            generos=[(slug_genero, nombre) for slug_genero, nombre, _ in GENEROS],
         )
     )
     response.headers["Cache-Control"] = "no-store"
@@ -901,6 +904,420 @@ def obtener_imagen_real(videojuego_id: str):
     )
 
 
+# ---------------------------------------------------------------------------
+# Descubrir juegos: colecciones y géneros
+# ---------------------------------------------------------------------------
+# Las categorías del CSV vienen de Wikipedia, mezclan inglés y español y tienen
+# cientos de variantes ("Action role-playing", "RPG", "Rol"...). Para que el
+# usuario pueda explorar por género, cada categoría se asigna a una o varias
+# familias buscando palabras clave en el texto ya normalizado.
+GENEROS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("accion", "Acción", ("action", "accion", "hack and slash", "beat 'em up", "brawler", "parkour")),
+    ("aventura", "Aventura", ("adventure", "aventura", "visual novel", "interactive drama", "interactive fiction", "interactive film", "walking simulator", "point-and-click", "exploration", "mystery", "detective")),
+    ("rol", "Rol (RPG)", ("role-playing", "role playing", "rpg", "soulslike", "dungeon crawl", "massively multiplayer")),
+    ("shooter", "Shooter", ("shooter", "shoot 'em up", "run and gun", "bullet hell", "battle royale")),
+    ("terror", "Terror", ("horror", "terror")),
+    ("plataformas", "Plataformas", ("platform", "plataformas", "metroidvania")),
+    ("deportes", "Deportes", ("sport", "football", "golf", "baseball", "basketball", "tennis", "rugby", "skateboarding", "snowboarding", "cycling")),
+    ("conduccion", "Conducción", ("racing", "driving", "conduccion", "rally", "vehicular")),
+    ("lucha", "Lucha", ("fighting", "fighter", "airdasher")),
+    ("estrategia", "Estrategia", ("strategy", "tactic", "tower defense", "4x", "auto battler", "deck-building", "card", "board")),
+    ("simulacion", "Simulación", ("simulation", "simulator", "sim ", "city-build", "management", "farm", "sandbox")),
+    ("puzles", "Puzles", ("puzzle", "match-three", "brain", "metroidbrainia")),
+    ("roguelike", "Roguelike", ("roguelike", "roguelite", "rougelike")),
+    ("musical", "Musical y ritmo", ("rhythm", "music")),
+    ("supervivencia", "Supervivencia", ("survival",)),
+    ("casual", "Casual y familiar", ("casual", "party", "family")),
+)
+NOMBRES_GENERO = {slug: nombre for slug, nombre, _ in GENEROS}
+COLECCIONES_DIR = BASE_DIR / "data" / "colecciones"
+LIMITE_COLECCION = 50
+LIMITE_COLECCION_MAX = 200
+DIAS_RECIENTES = 90
+
+
+@dataclass(frozen=True, slots=True)
+class Coleccion:
+    slug: str
+    titulo: str
+    descripcion: str
+    criterio: str
+
+
+COLECCIONES: tuple[Coleccion, ...] = (
+    Coleccion("mejor-valorados", "Mejor valorados por la crítica",
+              "Juegos ordenados por su nota de prensa en Metacritic.",
+              "Nota de críticos de Metacritic (0-100), de mayor a menor."),
+    Coleccion("mas-descargados", "Más descargados",
+              "Top 20 anual de la PlayStation Store en Europa publicado por Sony.",
+              "Ranking oficial anual de descargas de PS5 (región EU) del PlayStation Blog. Sin 'anio' se muestra el último año."),
+    Coleccion("goty", "Juegos del año (GOTY)",
+              "Ganadores del premio a Juego del año de The Game Awards.",
+              "Ganador de Game of the Year en The Game Awards de cada año."),
+    Coleccion("mas-esperados", "Lanzamientos más esperados",
+              "Los próximos juegos de PS5 con más seguidores esperándolos.",
+              "Seguidores aproximados en releases.com (lista de 2027, consultada el 20/11/2026)."),
+    Coleccion("proximos", "Próximos lanzamientos",
+              "Juegos con fecha de salida a partir de mañana, del más cercano al más lejano.",
+              "Fecha de salida posterior a hoy; los que solo tienen año van al final."),
+    Coleccion("recientes", "Novedades",
+              f"Juegos publicados en los últimos {DIAS_RECIENTES} días.",
+              "Fecha de salida entre hoy y los últimos 90 días, del más nuevo al más antiguo."),
+    Coleccion("expansiones-dlc", "Expansiones y DLC",
+              "Contenido adicional destacado de juegos de PS5, enlazado a su juego base.",
+              "Selección curada de expansiones y DLC, del más reciente al más antiguo."),
+    Coleccion("resenas-usuarios", "Mejores reseñas de usuarios",
+              "Juegos ordenados por la nota de los usuarios de Metacritic.",
+              "Nota de usuarios de Metacritic (0-10). Por ahora hay pocos juegos con este dato."),
+)
+COLECCIONES_POR_SLUG = {coleccion.slug: coleccion for coleccion in COLECCIONES}
+
+GENEROS_POR_JUEGO: dict[str, tuple[str, ...]] = {}
+EXTRAS_POR_ID: dict[str, dict[str, str]] = {}
+GOTY: tuple[dict[str, str], ...] = ()
+MAS_DESCARGADOS: tuple[dict[str, str], ...] = ()
+MAS_ESPERADOS: tuple[dict[str, str], ...] = ()
+EXPANSIONES: tuple[dict[str, str], ...] = ()
+
+
+def hoy() -> date:
+    """Separado para que los tests puedan fijar la fecha."""
+    return date.today()
+
+
+def generos_de_categoria(categoria: str) -> tuple[str, ...]:
+    texto = normalizar_categoria(categoria)
+    if not texto or "{" in texto:
+        return ()
+    texto = f"{texto} "
+    return tuple(
+        slug for slug, _, claves in GENEROS
+        if any(clave in texto for clave in claves)
+    )
+
+
+def generos_de(videojuego: dict[str, str]) -> tuple[str, ...]:
+    return GENEROS_POR_JUEGO.get(videojuego.get("id", "")) or generos_de_categoria(
+        videojuego.get("categoria", "")
+    )
+
+
+def leer_coleccion(nombre: str) -> tuple[dict[str, str], ...]:
+    path = COLECCIONES_DIR / nombre
+    if not path.exists():
+        logger.warning("No existe el archivo de colección %s", path)
+        return ()
+    with path.open(encoding="utf-8-sig", newline="") as archivo:
+        return tuple(csv.DictReader(archivo))
+
+
+def slug(texto: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", normalizar_texto(texto)).strip("-")
+
+
+def registro_extra(fila: dict[str, str], **campos: str) -> dict[str, str]:
+    """Ficha mínima para juegos citados en una colección que no están en el catálogo."""
+    registro = {
+        "id": f"extra-{slug(fila['titulo'])}",
+        "titulo": fila["titulo"],
+        "plataforma": "PS5",
+        "anio_salida": "",
+        "fecha_salida": "",
+        "desarrollador": "",
+        "resumen": "",
+        "estado": "fecha_publicada",
+        "fuente": fila.get("fuente", ""),
+        "categoria": "",
+        "imagen_url": "",
+        "en_catalogo": "no",
+    }
+    registro.update(campos)
+    return registro
+
+
+def cargar_colecciones() -> None:
+    """Lee las listas curadas y crea fichas para lo que no está en el catálogo."""
+    global GOTY, MAS_DESCARGADOS, MAS_ESPERADOS, EXPANSIONES
+    global EXTRAS_POR_ID, GENEROS_POR_JUEGO
+    EXTRAS_POR_ID = {}
+    GOTY = leer_coleccion("goty.csv")
+    MAS_DESCARGADOS = leer_coleccion("mas_descargados.csv")
+    MAS_ESPERADOS = leer_coleccion("mas_esperados.csv")
+    EXPANSIONES = leer_coleccion("expansiones_dlc.csv")
+
+    for fila in (*MAS_DESCARGADOS, *MAS_ESPERADOS):
+        if fila["id"] in VIDEOJUEGOS_POR_ID:
+            continue
+        if fila["id"]:
+            logger.warning("La colección cita un id inexistente: %s", fila["id"])
+        extra = registro_extra(fila)
+        fila["id"] = extra["id"]
+        EXTRAS_POR_ID.setdefault(extra["id"], extra)
+
+    for fila in EXPANSIONES:
+        base = VIDEOJUEGOS_POR_ID.get(fila["juego_base_id"], {})
+        EXTRAS_POR_ID[fila["id"]] = registro_extra(
+            fila,
+            id=fila["id"],
+            anio_salida=fila["fecha_salida"][:4],
+            fecha_salida=fila["fecha_salida"],
+            desarrollador=fila["desarrollador"],
+            resumen=fila["resumen"],
+            categoria=base.get("categoria", ""),
+            tipo=fila["tipo"],
+            juego_base_id=fila["juego_base_id"],
+            juego_base=base.get("titulo", ""),
+            en_catalogo="si",
+        )
+
+    GENEROS_POR_JUEGO = {
+        videojuego_id: generos_de_categoria(videojuego.get("categoria", ""))
+        for videojuego_id, videojuego in (
+            *VIDEOJUEGOS_POR_ID.items(), *EXTRAS_POR_ID.items()
+        )
+    }
+
+
+def nota(videojuego: dict[str, str], campo: str) -> float | None:
+    try:
+        valor = float(videojuego.get(campo, "") or "nan")
+    except ValueError:
+        return None
+    return valor if valor == valor and valor > 0 else None
+
+
+def fecha_de(videojuego: dict[str, str]) -> date | None:
+    try:
+        return date.fromisoformat(videojuego.get("fecha_salida", ""))
+    except ValueError:
+        return None
+
+
+def todos_los_juegos() -> Iterator[dict[str, str]]:
+    return iter(VIDEOJUEGOS_POR_ID.values())
+
+
+def con_destacado(
+    videojuego: dict[str, str], destacado: str, **extra: object
+) -> dict[str, object]:
+    return {
+        **videojuego,
+        "generos": [NOMBRES_GENERO[g] for g in generos_de(videojuego)],
+        "destacado": destacado,
+        **extra,
+    }
+
+
+def ficha_por_id(videojuego_id: str) -> dict[str, str] | None:
+    return VIDEOJUEGOS_POR_ID.get(videojuego_id) or EXTRAS_POR_ID.get(videojuego_id)
+
+
+def juegos_coleccion(slug_coleccion: str, anio: str) -> list[dict[str, object]]:
+    """Devuelve la colección ya ordenada, antes de filtrar por género o límite."""
+    if slug_coleccion == "mejor-valorados":
+        puntuados = [
+            (valor, juego) for juego in todos_los_juegos()
+            if (valor := nota(juego, "puntuacion_metacritic_criticos")) is not None
+            and (not anio or juego.get("anio_salida") == anio)
+        ]
+        puntuados.sort(key=lambda par: (-par[0], par[1]["titulo"].casefold()))
+        return [
+            con_destacado(juego, f"{valor:.0f} Metacritic")
+            for valor, juego in puntuados
+        ]
+
+    if slug_coleccion == "resenas-usuarios":
+        puntuados = [
+            (valor, juego) for juego in todos_los_juegos()
+            if (valor := nota(juego, "puntuacion_metacritic_usuarios")) is not None
+            and (not anio or juego.get("anio_salida") == anio)
+        ]
+        puntuados.sort(key=lambda par: (-par[0], par[1]["titulo"].casefold()))
+        return [
+            con_destacado(juego, f"{valor:.1f} usuarios")
+            for valor, juego in puntuados
+        ]
+
+    if slug_coleccion == "mas-descargados":
+        anios = sorted({fila["anio"] for fila in MAS_DESCARGADOS}, reverse=True)
+        anio_ranking = anio or (anios[0] if anios else "")
+        return [
+            con_destacado(
+                juego,
+                f"#{fila['posicion']} descargas EU {fila['anio']}",
+                ranking={"anio": int(fila["anio"]), "posicion": int(fila["posicion"]),
+                         "region": fila["region"], "fuente": fila["fuente"]},
+            )
+            for fila in MAS_DESCARGADOS
+            if fila["anio"] == anio_ranking and (juego := ficha_por_id(fila["id"]))
+        ]
+
+    if slug_coleccion == "goty":
+        return [
+            con_destacado(
+                juego,
+                f"GOTY {fila['anio']}",
+                premio={"anio": int(fila["anio"]), "nombre": fila["premio"],
+                        "nota": fila["nota"], "fuente": fila["fuente"]},
+            )
+            for fila in sorted(GOTY, key=lambda fila: fila["anio"], reverse=True)
+            if (not anio or fila["anio"] == anio) and (juego := ficha_por_id(fila["id"]))
+        ]
+
+    if slug_coleccion == "mas-esperados":
+        resultado = []
+        for fila in sorted(MAS_ESPERADOS, key=lambda fila: int(fila["posicion"])):
+            juego = ficha_por_id(fila["id"])
+            if juego is None or (anio and juego.get("anio_salida") != anio):
+                continue
+            # Si ya salió (p. ej. tras actualizar fechas), deja de ser "esperado".
+            fecha = fecha_de(juego)
+            if fecha is not None and fecha <= hoy():
+                continue
+            resultado.append(con_destacado(
+                juego,
+                # releases.com redondea a "1K" a partir de mil seguidores.
+                f"{int(fila['seguidores_aprox']):,}{'+' if int(fila['seguidores_aprox']) >= 1000 else ''} seguidores".replace(",", "."),
+                expectacion={"posicion": int(fila["posicion"]),
+                             "seguidores_aprox": int(fila["seguidores_aprox"]),
+                             "fuente": fila["fuente"],
+                             "consultado_el": fila["consultado_el"]},
+            ))
+        return resultado
+
+    if slug_coleccion == "proximos":
+        hoy_ = hoy()
+        con_fecha = []
+        solo_anio = []
+        for juego in todos_los_juegos():
+            if anio and juego.get("anio_salida") != anio:
+                continue
+            fecha = fecha_de(juego)
+            if fecha is not None:
+                if fecha > hoy_:
+                    con_fecha.append((fecha, juego))
+            elif juego.get("anio_salida", "").isdecimal() and int(
+                juego["anio_salida"]
+            ) > hoy_.year:
+                solo_anio.append(juego)
+        con_fecha.sort(key=lambda par: (par[0], par[1]["titulo"].casefold()))
+        solo_anio.sort(key=lambda juego: (juego["anio_salida"], juego["titulo"].casefold()))
+        return [
+            con_destacado(juego, f"Sale el {fecha.strftime('%d/%m/%Y')}")
+            for fecha, juego in con_fecha
+        ] + [
+            con_destacado(juego, f"Previsto para {juego['anio_salida']}")
+            for juego in solo_anio
+        ]
+
+    if slug_coleccion == "recientes":
+        hoy_ = hoy()
+        recientes = [
+            (fecha, juego) for juego in todos_los_juegos()
+            if (fecha := fecha_de(juego)) is not None
+            and 0 <= (hoy_ - fecha).days <= DIAS_RECIENTES
+            and (not anio or juego.get("anio_salida") == anio)
+        ]
+        recientes.sort(key=lambda par: (par[0], par[1]["titulo"]), reverse=True)
+        return [
+            con_destacado(juego, f"Salió el {fecha.strftime('%d/%m/%Y')}")
+            for fecha, juego in recientes
+        ]
+
+    if slug_coleccion == "expansiones-dlc":
+        expansiones = [
+            EXTRAS_POR_ID[fila["id"]] for fila in EXPANSIONES
+            if not anio or fila["fecha_salida"].startswith(anio)
+        ]
+        expansiones.sort(key=lambda juego: juego["fecha_salida"], reverse=True)
+        return [
+            con_destacado(juego, f"{juego['tipo']} de {juego['juego_base'] or 'otro juego'}")
+            for juego in expansiones
+        ]
+
+    return []
+
+
+def error_json(mensaje: str, codigo: int):
+    return jsonify({"error": mensaje}), codigo
+
+
+@app.route("/api/generos", methods=["GET"])
+def obtener_generos():
+    """Géneros unificados con el número de juegos del catálogo en cada uno."""
+    contador = Counter(
+        genero
+        for videojuego_id in VIDEOJUEGOS_POR_ID
+        for genero in GENEROS_POR_JUEGO.get(videojuego_id, ())
+    )
+    return respuesta_json_cacheable(json.dumps(
+        [
+            {"slug": slug_genero, "nombre": nombre, "total": contador[slug_genero]}
+            for slug_genero, nombre, _ in GENEROS
+        ],
+        ensure_ascii=False,
+    ).encode())
+
+
+@app.route("/api/descubrir", methods=["GET"])
+def listar_colecciones():
+    return jsonify([
+        {
+            "slug": coleccion.slug,
+            "titulo": coleccion.titulo,
+            "descripcion": coleccion.descripcion,
+            "url": url_for("obtener_coleccion", slug_coleccion=coleccion.slug),
+        }
+        for coleccion in COLECCIONES
+    ])
+
+
+@app.route("/api/descubrir/<slug_coleccion>", methods=["GET"])
+def obtener_coleccion(slug_coleccion: str):
+    coleccion = COLECCIONES_POR_SLUG.get(slug_coleccion)
+    if coleccion is None:
+        return error_json(
+            "Colección no encontrada. Consulta /api/descubrir para ver las disponibles.",
+            404,
+        )
+    anio = request.args.get("anio", "").strip()
+    if anio and not (anio.isdecimal() and len(anio) == 4):
+        return error_json("El año debe tener cuatro cifras, por ejemplo 2024.", 400)
+    genero = request.args.get("genero", "").strip()
+    if genero and genero not in NOMBRES_GENERO:
+        return error_json(
+            "Género no válido. Consulta /api/generos para ver los disponibles.", 400
+        )
+    limite_texto = request.args.get("limite", str(LIMITE_COLECCION)).strip()
+    if not limite_texto.isdecimal() or not 1 <= int(limite_texto) <= LIMITE_COLECCION_MAX:
+        return error_json(
+            f"El límite debe ser un número entre 1 y {LIMITE_COLECCION_MAX}.", 400
+        )
+
+    juegos = juegos_coleccion(coleccion.slug, anio)
+    if genero:
+        juegos = [juego for juego in juegos if NOMBRES_GENERO[genero] in juego["generos"]]
+    total = len(juegos)
+    juegos = juegos[: int(limite_texto)]
+    for posicion, juego in enumerate(juegos, start=1):
+        juego["posicion"] = posicion
+
+    cuerpo = {
+        "coleccion": coleccion.slug,
+        "titulo": coleccion.titulo,
+        "descripcion": coleccion.descripcion,
+        "criterio": coleccion.criterio,
+        "filtros": {"anio": anio or None, "genero": genero or None},
+        "total": total,
+        "juegos": juegos,
+    }
+    if coleccion.slug == "mas-descargados":
+        cuerpo["anios_disponibles"] = sorted(
+            {int(fila["anio"]) for fila in MAS_DESCARGADOS}, reverse=True
+        )
+    return respuesta_json_cacheable(json.dumps(cuerpo, ensure_ascii=False).encode())
+
+
 @app.route("/videojuegos.csv", methods=["GET"])
 def descargar_videojuegos_csv():
     anio = request.args.get("anio", "").strip()
@@ -921,6 +1338,7 @@ def descargar_videojuegos_csv():
 
 
 cargar_catalogo()
+cargar_colecciones()
 
 
 if __name__ == "__main__":

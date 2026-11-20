@@ -48,12 +48,36 @@ Abre <http://127.0.0.1:5000/>.
 | `GET` | `/api/videojuegos/<id>` | Ficha JSON de un videojuego |
 | `GET` | `/imagenes/<id>` | Imagen o ilustración alternativa |
 | `GET` | `/videojuegos.csv?anio=2026` | Descargar catálogo anual en CSV |
+| `GET` | `/api/descubrir` | Colecciones para descubrir juegos |
+| `GET` | `/api/descubrir/<coleccion>?genero=rol&anio=2024&limite=20` | Juegos de una colección, ya ordenados |
+| `GET` | `/api/generos` | Géneros unificados y número de juegos de cada uno |
 
 Ejemplo para consultar el catálogo:
 
 ```bash
 curl "http://127.0.0.1:5000/api/videojuegos?anio=2026"
 ```
+
+## Descubrir juegos
+
+Además de buscar por título, la web ofrece colecciones para encontrar juegos:
+
+| Colección | Criterio |
+|---|---|
+| `mejor-valorados` | Nota de críticos de Metacritic |
+| `mas-descargados` | Top 20 anual de la PlayStation Store en Europa (PlayStation Blog, 2023-2025) |
+| `goty` | Ganadores de Juego del año en The Game Awards (2020-2025) |
+| `mas-esperados` | Seguidores en releases.com de los próximos juegos de PS5 |
+| `proximos` | Fecha de salida posterior a hoy |
+| `recientes` | Publicados en los últimos 90 días |
+| `expansiones-dlc` | Expansiones y DLC destacados, enlazados a su juego base |
+| `resenas-usuarios` | Nota de usuarios de Metacritic (aún con pocos datos) |
+
+Todas admiten `genero` (ver `/api/generos`), `anio` y `limite` (1-200). Las
+categorías de Wikipedia se agrupan en 16 géneros en español (Acción, Rol,
+Shooter, Terror...). Las listas curadas están en `data/colecciones/` como CSV
+con la fuente de cada dato; los juegos que citan y no están en el catálogo
+reciben una ficha mínima para poder abrirlos igualmente.
 
 ## Rendimiento
 
