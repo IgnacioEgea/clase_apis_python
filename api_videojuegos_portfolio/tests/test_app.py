@@ -896,5 +896,119 @@ class ApiVideojuegosTests(unittest.TestCase):
         self.assertIn("PUZZLE · 2024", primera)
 
 
+class DescubrirTests(unittest.TestCase):
+    """Colecciones para descubrir juegos: /api/descubrir y /api/generos."""
+
+    def setUp(self):
+        self.cliente = app.test_client()
+
+    def coleccion(self, ruta):
+        respuesta = self.cliente.get(ruta)
+        self.assertEqual(respuesta.status_code, 200, respuesta.data)
+        return respuesta.get_json()
+
+    def test_lista_todas_las_colecciones(self):
+        colecciones = self.cliente.get("/api/descubrir").get_json()
+        slugs = {coleccion["slug"] for coleccion in colecciones}
+        self.assertEqual(slugs, set(modulo_app.COLECCIONES_POR_SLUG))
+        for coleccion in colecciones:
+            self.assertEqual(
+                self.cliente.get(coleccion["url"]).status_code, 200, coleccion
+            )
+
+    def test_las_listas_curadas_apuntan_a_juegos_existentes(self):
+        for fila in (*modulo_app.GOTY, *modulo_app.MAS_DESCARGADOS,
+                     *modulo_app.MAS_ESPERADOS):
+            self.assertIsNotNone(modulo_app.buscar_videojuego(fila["id"]), fila)
+        for fila in modulo_app.EXPANSIONES:
+            self.assertIn(fila["juego_base_id"], modulo_app.VIDEOJUEGOS_POR_ID, fila)
+
+    def test_mejor_valorados_ordenados_por_nota(self):
+        datos = self.coleccion("/api/descubrir/mejor-valorados?limite=200")
+        notas = [
+            float(juego["puntuacion_metacritic_criticos"])
+            for juego in datos["juegos"]
+        ]
+        self.assertEqual(notas, sorted(notas, reverse=True))
+        self.assertGreater(datos["total"], 400)
+        self.assertEqual(
+            [juego["posicion"] for juego in datos["juegos"][:3]], [1, 2, 3]
+        )
+
+    def test_filtros_de_anio_genero_y_limite(self):
+        datos = self.coleccion(
+            "/api/descubrir/mejor-valorados?anio=2023&genero=rol&limite=5"
+        )
+        self.assertLessEqual(len(datos["juegos"]), 5)
+        for juego in datos["juegos"]:
+            self.assertEqual(juego["anio_salida"], "2023")
+            self.assertIn("Rol (RPG)", juego["generos"])
+        self.assertEqual(datos["filtros"], {"anio": "2023", "genero": "rol"})
+
+    def test_goty_por_anio(self):
+        datos = self.coleccion("/api/descubrir/goty?anio=2024")
+        self.assertEqual([j["titulo"] for j in datos["juegos"]], ["Astro Bot"])
+        self.assertEqual(datos["juegos"][0]["destacado"], "GOTY 2024")
+
+    def test_mas_descargados_usa_el_ultimo_anio_por_defecto(self):
+        datos = self.coleccion("/api/descubrir/mas-descargados")
+        self.assertEqual(datos["anios_disponibles"][0], datos["juegos"][0]["ranking"]["anio"])
+        self.assertEqual(len(datos["juegos"]), 20)
+        anterior = self.coleccion("/api/descubrir/mas-descargados?anio=2023")
+        self.assertEqual(anterior["juegos"][0]["titulo"], "EA Sports FC 24")
+
+    def test_juegos_fuera_del_catalogo_tienen_ficha(self):
+        datos = self.coleccion("/api/descubrir/mas-descargados?anio=2025")
+        extra = next(j for j in datos["juegos"] if j.get("en_catalogo") == "no")
+        ficha = self.cliente.get(f"/api/videojuegos/{extra['id']}")
+        self.assertEqual(ficha.status_code, 200)
+        self.assertEqual(ficha.get_json()["titulo"], extra["titulo"])
+
+    def test_proximos_y_recientes_dependen_de_la_fecha(self):
+        with patch.object(modulo_app, "hoy", return_value=modulo_app.date(2026, 11, 20)):
+            proximos = self.coleccion("/api/descubrir/proximos?limite=200")["juegos"]
+            recientes = self.coleccion("/api/descubrir/recientes?limite=200")["juegos"]
+        fechas = [j["fecha_salida"] for j in proximos if j["fecha_salida"]]
+        self.assertTrue(all(fecha > "2026-11-20" for fecha in fechas))
+        self.assertEqual(fechas, sorted(fechas))
+        self.assertTrue(all("2026-08-22" <= j["fecha_salida"] <= "2026-11-20" for j in recientes))
+        self.assertIn("Grand Theft Auto VI", [j["titulo"] for j in recientes])
+
+    def test_mas_esperados_excluye_los_ya_publicados(self):
+        with patch.object(modulo_app, "hoy", return_value=modulo_app.date(2027, 3, 1)):
+            titulos = [
+                j["titulo"]
+                for j in self.coleccion("/api/descubrir/mas-esperados")["juegos"]
+            ]
+        self.assertNotIn("Fable", titulos)  # salía en febrero de 2027
+        self.assertIn("The Witcher IV", titulos)
+
+    def test_expansiones_enlazan_su_juego_base(self):
+        datos = self.coleccion("/api/descubrir/expansiones-dlc?limite=200")
+        erdtree = next(
+            j for j in datos["juegos"] if j["id"] == "elden-ring-shadow-of-the-erdtree"
+        )
+        self.assertEqual(erdtree["juego_base"], "Elden Ring")
+        self.assertEqual(erdtree["tipo"], "Expansión")
+        fechas = [j["fecha_salida"] for j in datos["juegos"]]
+        self.assertEqual(fechas, sorted(fechas, reverse=True))
+
+    def test_generos_unifican_variantes(self):
+        self.assertEqual(modulo_app.generos_de_categoria("RPG"), ("rol",))
+        self.assertEqual(modulo_app.generos_de_categoria("Action role-playing"), ("accion", "rol"))
+        self.assertEqual(modulo_app.generos_de_categoria("Acción"), ("accion",))
+        self.assertEqual(modulo_app.generos_de_categoria(".mw-parser-output {x}"), ())
+        generos = self.cliente.get("/api/generos").get_json()
+        self.assertTrue(all(genero["total"] > 0 for genero in generos))
+
+    def test_errores_de_parametros(self):
+        self.assertEqual(self.cliente.get("/api/descubrir/no-existe").status_code, 404)
+        for consulta in ("anio=20", "genero=inventado", "limite=0", "limite=abc"):
+            with self.subTest(consulta=consulta):
+                respuesta = self.cliente.get(f"/api/descubrir/goty?{consulta}")
+                self.assertEqual(respuesta.status_code, 400)
+                self.assertIn("error", respuesta.get_json())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -57,6 +57,9 @@ el puerto que Render proporciona por la variable `PORT`.
 - `GET /imagenes/<id>`: imagen de alta resolución o una ilustración identificada
   cuando no se dispone de arte original.
 - `GET /videojuegos.csv?anio=2026`: descargar el archivo anual.
+- `GET /api/descubrir`: colecciones para descubrir juegos.
+- `GET /api/descubrir/<coleccion>?genero=rol&anio=2024&limite=20`: juegos de una colección, ya ordenados.
+- `GET /api/generos`: géneros unificados con su número de juegos.
 
 Las imágenes originales se obtienen de páginas oficiales o fichas públicas. Las
 miniaturas de Metacritic se resuelven a la imagen original en vez de usar la
@@ -64,6 +67,27 @@ versión de 96 × 144 píxeles. La ilustración de sustitución no pretende ser 
 portada real. Las puntuaciones solo se muestran cuando hay una fuente guardada.
 La media normaliza las notas disponibles a una escala común de 0 a 10; se
 presenta como orientativa porque las fuentes pueden usar criterios diferentes.
+
+## Descubrir juegos
+
+Además de buscar por título, la web ofrece colecciones para encontrar juegos:
+
+| Colección | Criterio |
+|---|---|
+| `mejor-valorados` | Nota de críticos de Metacritic |
+| `mas-descargados` | Top 20 anual de la PlayStation Store en Europa (PlayStation Blog, 2023-2025) |
+| `goty` | Ganadores de Juego del año en The Game Awards (2020-2025) |
+| `mas-esperados` | Seguidores en releases.com de los próximos juegos de PS5 |
+| `proximos` | Fecha de salida posterior a hoy |
+| `recientes` | Publicados en los últimos 90 días |
+| `expansiones-dlc` | Expansiones y DLC destacados, enlazados a su juego base |
+| `resenas-usuarios` | Nota de usuarios de Metacritic (aún con pocos datos) |
+
+Todas admiten `genero` (ver `/api/generos`), `anio` y `limite` (1-200). Las
+categorías de Wikipedia se agrupan en 16 géneros en español (Acción, Rol,
+Shooter, Terror...). Las listas curadas están en `data/colecciones/` como CSV
+con la fuente de cada dato; los juegos que citan y no están en el catálogo
+reciben una ficha mínima para poder abrirlos igualmente.
 
 ## Actualizar el catálogo
 

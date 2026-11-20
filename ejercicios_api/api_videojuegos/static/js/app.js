@@ -81,6 +81,17 @@
   let selectedGameId = "";
   let selectionVersion = 0;
   let catalogRequestVersion = 0;
+  // Colección de "Descubre juegos" mostrada en Resultados (null = búsqueda normal).
+  let currentCollection = null;
+  const discoverChips = [...document.querySelectorAll(".discover-chip")];
+  const discoverGenre = document.getElementById("discover-genre");
+  const discoverYear = document.getElementById("discover-year");
+  const discoverDescription = document.getElementById("discover-description");
+
+  // Año del archivo donde vive un juego: lo usan el historial y los favoritos.
+  function gameYear(game) {
+    return /^\d{4}$/.test(game.anio_salida || "") ? game.anio_salida : "sin-fecha";
+  }
 
   function applyLayoutFormat(format, save = false) {
     const selectedFormat = Object.hasOwn(formatNames, format)
@@ -168,20 +179,7 @@
       item.className = "history-item";
       button.type = "button";
       button.textContent = `${entry.titulo} · ${entry.anio}`;
-      button.addEventListener("click", async () => {
-        yearSelect.value = entry.anio;
-        input.value = entry.titulo;
-        categorySelect.value = "";
-        monthSelect.value = "";
-        try {
-          renderCategories(await loadCategories(entry.anio));
-        } catch (error) {
-          status.textContent = error.message || "No se pudieron cargar los filtros de ese año.";
-          return;
-        }
-        updateActiveFilters();
-        form.requestSubmit();
-      });
+      button.addEventListener("click", () => openSavedGame(entry, "el historial"));
       item.append(button);
       historyList.append(item);
     });
@@ -259,7 +257,7 @@
       openButton.type = "button";
       openButton.textContent = `${entry.titulo} · ${entry.anio}`;
       openButton.setAttribute("aria-label", `Abrir ${entry.titulo}, ${entry.anio}`);
-      openButton.addEventListener("click", () => openFavorite(entry));
+      openButton.addEventListener("click", () => openSavedGame(entry, "favoritos"));
       removeButton.className = "favorite-remove";
       removeButton.type = "button";
       removeButton.textContent = "×";
@@ -273,9 +271,10 @@
     });
   }
 
-  async function openFavorite(entry) {
+  async function openSavedGame(entry, origin) {
     const requestVersion = ++catalogRequestVersion;
-    status.textContent = `Abriendo ${entry.titulo} desde favoritos…`;
+    setActiveCollection(null);
+    status.textContent = `Abriendo ${entry.titulo} desde ${origin}…`;
     submitButton.disabled = true;
     submitButton.textContent = "Abriendo…";
     yearSelect.value = entry.anio;
@@ -293,19 +292,19 @@
       );
       if (requestVersion !== catalogRequestVersion) return;
       if (!game || game.id !== entry.id) {
-        throw new Error("No se encontró el videojuego guardado en favoritos.");
+        throw new Error(`No se encontró el videojuego guardado en ${origin}.`);
       }
       renderGames([game]);
       const gameButton = gameList.querySelector(".game-card");
       if (!gameButton) {
-        throw new Error("No se pudo mostrar el videojuego guardado en favoritos.");
+        throw new Error(`No se pudo mostrar el videojuego guardado en ${origin}.`);
       }
       selectGame(game, gameButton, entry.anio);
       favoritesMessage.textContent = "";
     } catch (error) {
       if (requestVersion !== catalogRequestVersion) return;
       status.textContent =
-        error.message || `No se pudo abrir ${entry.titulo} desde favoritos.`;
+        error.message || `No se pudo abrir ${entry.titulo} desde ${origin}.`;
     } finally {
       if (requestVersion === catalogRequestVersion) {
         submitButton.disabled = false;
@@ -325,7 +324,7 @@
         {
           id: selectedGame.id,
           titulo: selectedGame.titulo,
-          anio: yearSelect.value,
+          anio: currentCollection ? gameYear(selectedGame) : yearSelect.value,
         },
         ...favorites,
       ];
@@ -578,7 +577,8 @@
   function renderGames(games) {
     currentGames = games;
     const direction = orderSelect.value === "desc" ? -1 : 1;
-    const ordered = [...games].sort((left, right) => {
+    // Las colecciones ya llegan ordenadas por su criterio (nota, ranking…).
+    const ordered = currentCollection ? [...games] : [...games].sort((left, right) => {
       const leftDate = left.fecha_salida || "9999-99-99";
       const rightDate = right.fecha_salida || "9999-99-99";
       if (leftDate === "9999-99-99" && rightDate !== leftDate) return 1;
@@ -599,18 +599,39 @@
       date.className = "game-date";
       date.textContent = formatListDate(game);
       title.textContent = game.titulo;
-      button.append(date, title);
-      button.addEventListener("click", () => selectGame(game, button));
+      if (currentCollection) {
+        const rank = document.createElement("span");
+        const titleBlock = document.createElement("span");
+        const badge = document.createElement("span");
+        // En las colecciones por fecha se muestra la fecha; en los rankings, el puesto.
+        const byDate = ["proximos", "recientes", "expansiones-dlc"]
+          .includes(currentCollection.coleccion);
+        rank.className = byDate ? "game-date" : "game-rank";
+        rank.textContent = byDate ? formatListDate(game) : `#${game.posicion}`;
+        titleBlock.className = "game-card-title";
+        badge.className = "game-badge";
+        badge.textContent = game.destacado || "";
+        titleBlock.append(title, badge);
+        button.append(rank, titleBlock);
+        button.addEventListener("click", () => selectGame(game, button, gameYear(game)));
+      } else {
+        button.append(date, title);
+        button.addEventListener("click", () => selectGame(game, button));
+      }
       gameList.append(button);
     });
     catalogMessage.hidden = ordered.length > 0;
     catalogMessage.textContent = ordered.length
       ? ""
       : "No hay juegos que coincidan con estos filtros.";
-    catalogSummary.textContent = `${ordered.length} juego${ordered.length === 1 ? "" : "s"} · ordenados por fecha de salida`;
+    catalogSummary.textContent = currentCollection
+      ? `${currentCollection.titulo} · ${ordered.length} juego${ordered.length === 1 ? "" : "s"}`
+      : `${ordered.length} juego${ordered.length === 1 ? "" : "s"} · ordenados por fecha de salida`;
   }
 
-  orderSelect.addEventListener("change", () => renderGames(currentGames));
+  orderSelect.addEventListener("change", () => {
+    if (!currentCollection) renderGames(currentGames);
+  });
   yearSelect.addEventListener("change", () => form.requestSubmit());
   categorySelect.addEventListener("change", () => form.requestSubmit());
   monthSelect.addEventListener("change", () => form.requestSubmit());
@@ -653,8 +674,9 @@
       game.fecha_salida
         ? formatDate(game.fecha_salida)
         : game.anio_salida || "Por confirmar";
-    document.getElementById("detail-category").textContent =
-      game.categoria || "Por confirmar";
+    document.getElementById("detail-category").textContent = game.juego_base
+      ? `${game.tipo || "Contenido adicional"} de ${game.juego_base}`
+      : game.categoria || "Por confirmar";
     document.getElementById("detail-platform").textContent =
       game.plataforma || "PS5";
     const estados = {
@@ -700,7 +722,9 @@
       gameCover.classList.remove("is-loading");
       coverSource.textContent = String(game.imagen_url || "").startsWith("/imagenes/")
         ? "Portada ilustrativa: no hay arte oficial disponible para este juego."
-        : describeCoverSource(game);
+        : !game.imagen_url
+          ? "Portada buscada en Wikipedia o Steam; si no hay, se muestra una ilustración."
+          : describeCoverSource(game);
       status.textContent = `Ficha de ${game.titulo} lista.`;
     };
     detailImage.onerror = () => {
@@ -715,7 +739,9 @@
     openJson.href = detailUrl.href;
     openJson.setAttribute("aria-disabled", "false");
     summary.textContent = `Ficha JSON · ${game.titulo}`;
-    catalogSummary.textContent = `Juego seleccionado · ${anio}`;
+    catalogSummary.textContent = currentCollection
+      ? `${currentCollection.titulo} · juego seleccionado`
+      : `Juego seleccionado · ${anio}`;
     saveSelectedGame(game, anio);
     gameDetail.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
@@ -723,6 +749,7 @@
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const requestVersion = ++catalogRequestVersion;
+    setActiveCollection(null);
     selectionVersion += 1;
     const anio = yearSelect.value;
     const query = input.value.trim();
@@ -785,6 +812,80 @@
         submitButton.textContent = "Buscar juegos";
       }
     }
+  });
+
+  function setActiveCollection(collection) {
+    currentCollection = collection;
+    discoverChips.forEach((chip) => {
+      chip.setAttribute(
+        "aria-pressed",
+        String(Boolean(collection) && chip.dataset.collection === collection.coleccion)
+      );
+    });
+  }
+
+  function describeCollection(data) {
+    discoverDescription.replaceChildren();
+    const name = document.createElement("strong");
+    name.textContent = `${data.titulo}: `;
+    discoverDescription.append(
+      name,
+      document.createTextNode(
+        `${data.criterio} Mostrando ${data.juegos.length} de ${data.total} juego${data.total === 1 ? "" : "s"}.`
+      )
+    );
+  }
+
+  async function loadCollection(slug, scroll = true) {
+    const requestVersion = ++catalogRequestVersion;
+    selectionVersion += 1;
+    const apiUrl = new URL(`/api/descubrir/${encodeURIComponent(slug)}`, window.location.href);
+    if (discoverGenre.value) apiUrl.searchParams.set("genero", discoverGenre.value);
+    if (discoverYear.value) apiUrl.searchParams.set("anio", discoverYear.value);
+    discoverDescription.textContent = "Cargando la colección…";
+    gameDetail.hidden = true;
+    catalogResults.classList.remove("has-selection");
+    backToListTop.hidden = true;
+    selectedGame = null;
+    selectedGameId = "";
+    updateFavoriteToggle();
+    try {
+      const data = await fetchJson(apiUrl);
+      if (requestVersion !== catalogRequestVersion) return;
+      setActiveCollection(data);
+      describeCollection(data);
+      renderGames(data.juegos);
+      if (!data.juegos.length) {
+        catalogMessage.textContent =
+          "Esta colección no tiene juegos con ese género o año. Prueba a quitar algún filtro.";
+      }
+      gameList.scrollTop = 0;
+      output.textContent = JSON.stringify(data, null, 2);
+      openJson.href = apiUrl.toString();
+      openJson.setAttribute("aria-disabled", "false");
+      summary.textContent = `Colección · ${data.titulo}`;
+      status.textContent = `${data.titulo}: ${data.juegos.length} juego${data.juegos.length === 1 ? "" : "s"}.`;
+      if (scroll) {
+        document.getElementById("catalog-title").scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    } catch (error) {
+      if (requestVersion !== catalogRequestVersion) return;
+      discoverDescription.textContent =
+        error.message || "No se pudo cargar la colección.";
+    }
+  }
+
+  discoverChips.forEach((chip) => {
+    chip.addEventListener("click", () => loadCollection(chip.dataset.collection));
+  });
+  [discoverGenre, discoverYear].forEach((select) => {
+    select.addEventListener("change", () => {
+      // Con una colección abierta, los filtros se aplican al momento.
+      if (currentCollection) loadCollection(currentCollection.coleccion, false);
+    });
   });
 
   const initialYear = yearSelect.value;
