@@ -1010,5 +1010,146 @@ class DescubrirTests(unittest.TestCase):
                 self.assertIn("error", respuesta.get_json())
 
 
+class MejorasBusquedaTests(unittest.TestCase):
+    """Búsqueda en todos los años, juegos parecidos y datos corregidos."""
+
+    def setUp(self):
+        self.cliente = app.test_client()
+
+    def test_buscar_en_todos_los_anios(self):
+        respuesta = self.cliente.get("/api/videojuegos?anio=todos&q=resident evil")
+        self.assertEqual(respuesta.status_code, 200)
+        anios = {juego["anio_salida"] for juego in respuesta.get_json()}
+        self.assertGreater(len(anios), 1)
+
+    def test_buscar_por_nombre_sin_anio_usa_todo_el_catalogo(self):
+        respuesta = self.cliente.get("/api/videojuegos?q=elden ring")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("Elden Ring", [j["titulo"] for j in respuesta.get_json()])
+        self.assertEqual(self.cliente.get("/api/videojuegos").status_code, 400)
+
+    def test_todos_los_anios_sin_filtros_devuelve_el_catalogo(self):
+        juegos = self.cliente.get("/api/videojuegos?anio=todos").get_json()
+        self.assertEqual(len(juegos), len(modulo_app.VIDEOJUEGOS_POR_ID))
+        self.assertEqual(juegos[-1]["anio_salida"], "")  # sin fecha, al final
+        categorias = self.cliente.get("/api/categorias?anio=todos").get_json()
+        self.assertGreater(len(categorias["categorias"]), 100)
+
+    def test_similares_priorizan_la_misma_saga(self):
+        datos = self.cliente.get("/api/videojuegos/elden-ring/similares").get_json()
+        self.assertEqual(datos["similares"][0]["titulo"], "Elden Ring Nightreign")
+        self.assertIn("misma saga", datos["similares"][0]["destacado"])
+        ids = [juego["id"] for juego in datos["similares"]]
+        self.assertNotIn("elden-ring", ids)
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_similares_de_una_expansion_empiezan_por_su_juego_base(self):
+        datos = self.cliente.get(
+            "/api/videojuegos/elden-ring-shadow-of-the-erdtree/similares"
+        ).get_json()
+        self.assertEqual(datos["similares"][0]["id"], "elden-ring")
+
+    def test_clave_saga_no_junta_marcas_distintas(self):
+        self.assertEqual(
+            modulo_app.clave_saga("EA Sports FC 26"),
+            modulo_app.clave_saga("EA Sports FC 25"),
+        )
+        self.assertNotEqual(
+            modulo_app.clave_saga("EA Sports FC 26"),
+            modulo_app.clave_saga("EA Sports PGA Tour"),
+        )
+        self.assertNotEqual(
+            modulo_app.clave_saga("The Last of Us Part I"),
+            modulo_app.clave_saga("The Last Faith"),
+        )
+
+    def test_similares_errores(self):
+        self.assertEqual(
+            self.cliente.get("/api/videojuegos/no-existe/similares").status_code, 404
+        )
+        self.assertEqual(
+            self.cliente.get("/api/videojuegos/elden-ring/similares?limite=0").status_code,
+            400,
+        )
+
+    def test_ninguna_categoria_arrastra_css_de_wikipedia(self):
+        for juego in modulo_app.VIDEOJUEGOS_POR_ID.values():
+            self.assertNotIn("mw-parser-output", juego["categoria"], juego["id"])
+
+    def test_casi_todos_los_juegos_tienen_genero(self):
+        sin_genero = [
+            juego["titulo"] for juego in modulo_app.VIDEOJUEGOS_POR_ID.values()
+            if not modulo_app.GENEROS_POR_JUEGO.get(juego["id"])
+        ]
+        self.assertLessEqual(len(sin_genero), 5, sin_genero)
+
+    def test_la_portada_ofrece_buscar_en_todos_los_anios(self):
+        html_portada = self.cliente.get("/").get_data(as_text=True)
+        self.assertIn('<option value="todos">Todos los años</option>', html_portada)
+        self.assertIn('id="similar-list"', html_portada)
+
+
+class ResumenesTests(unittest.TestCase):
+    """Resúmenes redactados a mano en data/resumenes.csv."""
+
+    def test_los_resumenes_apuntan_a_juegos_existentes(self):
+        resumenes = modulo_app.leer_resumenes()
+        self.assertGreater(len(resumenes), 150)
+        for videojuego_id, resumen in resumenes.items():
+            self.assertIn(videojuego_id, modulo_app.VIDEOJUEGOS_POR_ID)
+            self.assertLessEqual(len(resumen), 200, videojuego_id)
+
+    def test_la_api_devuelve_el_resumen_manual(self):
+        cliente = app.test_client()
+        juego = cliente.get("/api/videojuegos/baldur-s-gate-iii").get_json()
+        self.assertIn("Dungeons & Dragons", juego["resumen"])
+        anio = cliente.get("/api/videojuegos?anio=2023&q=baldur").get_json()
+        self.assertTrue(anio[0]["resumen"])
+
+    def test_un_resumen_del_csv_no_se_sobrescribe(self):
+        videojuego = {"id": "x", "resumen": "Original"}
+        modulo_app.con_resumen(videojuego, {"x": "Manual"})
+        self.assertEqual(videojuego["resumen"], "Original")
+
+
+class DocumentacionTests(unittest.TestCase):
+    """Página /api/docs y especificación /api/openapi.json."""
+
+    RUTAS_NO_PUBLICAS = {"/api/clientes", "/api/docs"}
+
+    def setUp(self):
+        self.cliente = app.test_client()
+
+    def test_todas_las_rutas_publicas_estan_documentadas(self):
+        documentadas = {endpoint.ruta for endpoint in modulo_app.ENDPOINTS}
+        for regla in app.url_map.iter_rules():
+            ruta = str(regla)
+            es_publica = ruta.startswith(("/api/", "/imagenes/")) or ruta.endswith(".csv")
+            if es_publica and ruta not in self.RUTAS_NO_PUBLICAS:
+                self.assertIn(ruta, documentadas, f"Falta documentar {ruta}")
+
+    def test_los_ejemplos_de_la_documentacion_funcionan(self):
+        with patch.object(modulo_app, "obtener_portada", return_value=None):
+            for endpoint in modulo_app.ENDPOINTS:
+                for ejemplo in endpoint.ejemplos:
+                    with self.subTest(ejemplo=ejemplo):
+                        self.assertEqual(self.cliente.get(ejemplo).status_code, 200)
+
+    def test_openapi_describe_las_mismas_rutas(self):
+        especificacion = self.cliente.get("/api/openapi.json").get_json()
+        self.assertEqual(especificacion["openapi"], "3.1.0")
+        self.assertEqual(len(especificacion["paths"]), len(modulo_app.ENDPOINTS))
+        similares = especificacion["paths"]["/api/videojuegos/{videojuego_id}/similares"]["get"]
+        nombres = [parametro["name"] for parametro in similares["parameters"]]
+        self.assertEqual(nombres, ["videojuego_id", "limite"])
+        self.assertIn("404", similares["responses"])
+
+    def test_la_pagina_de_documentacion_lista_cada_endpoint(self):
+        html_docs = self.cliente.get("/api/docs").get_data(as_text=True)
+        for endpoint in modulo_app.ENDPOINTS:
+            self.assertIn(f'id="{endpoint.ancla}"', html_docs)
+        self.assertIn("/api/docs", self.cliente.get("/").get_data(as_text=True))
+
+
 if __name__ == "__main__":
     unittest.main()

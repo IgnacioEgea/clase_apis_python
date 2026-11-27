@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#102b3f">
+    <title>Documentación de la API · Calendario PS5</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=static_version) }}">
+    <script src="{{ url_for('static', filename='js/docs.js', v=static_version) }}" defer></script>
+  </head>
+  <body class="docs-page">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="{{ url_for('home') }}">
+          <span class="brand-mark" aria-hidden="true">PS5</span>
+          <span>Calendario PS5</span>
+        </a>
+        <nav class="topbar-actions" aria-label="Navegación principal">
+          <a class="nav-link" href="{{ url_for('home') }}">Volver al catálogo</a>
+          <a class="nav-link nav-link-primary" href="{{ url_for('obtener_openapi') }}" download="openapi.json">Descargar OpenAPI</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero docs-hero" aria-labelledby="docs-title">
+        <div>
+          <p class="eyebrow">Documentación · API REST</p>
+          <h1 id="docs-title">API del Calendario PS5</h1>
+          <p class="hero-copy">
+            Consulta el catálogo de juegos de PS5, busca por nombre, abre fichas, descubre colecciones y
+            pide recomendaciones. Todas las rutas son <code>GET</code>, no necesitan clave y responden en JSON
+            salvo las de imágenes y CSV. Puedes probar cada ejemplo desde esta página.
+          </p>
+        </div>
+        <div class="hero-aside">
+          <strong>{{ total }}</strong>
+          <span>endpoints documentados</span>
+          <div class="status">OpenAPI 3.1 disponible</div>
+        </div>
+      </section>
+
+      <section class="panel docs-basics" aria-labelledby="basics-title">
+        <h2 id="basics-title">Lo básico</h2>
+        <dl class="docs-basics-grid">
+          <div><dt>URL base</dt><dd><code>{{ base_url }}</code></dd></div>
+          <div><dt>Errores</dt><dd>Código HTTP 4xx con un JSON <code>{"error": "mensaje"}</code> en español.</dd></div>
+          <div><dt>Caché</dt><dd>Las respuestas JSON se pueden guardar 5 minutos y llevan <code>ETag</code>.</dd></div>
+          <div><dt>Datos</dt><dd>Wikipedia y Wikidata (CC BY-SA / CC0) más listas curadas con su fuente.</dd></div>
+        </dl>
+        <nav class="docs-index" aria-label="Índice de endpoints">
+          {% for grupo, endpoints in grupos.items() %}
+          <div class="docs-index-group">
+            <span>{{ grupo }}</span>
+            {% for endpoint in endpoints %}
+            <a href="#{{ endpoint.ancla }}">{{ endpoint.titulo }}</a>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </nav>
+      </section>
+
+      {% for grupo, endpoints in grupos.items() %}
+      <section aria-labelledby="grupo-{{ loop.index }}">
+        <div class="section-heading"><h2 id="grupo-{{ loop.index }}">{{ grupo }}</h2></div>
+        {% for endpoint in endpoints %}
+        <article class="panel doc-endpoint" id="{{ endpoint.ancla }}" aria-labelledby="{{ endpoint.ancla }}-title">
+          <div class="doc-endpoint-head">
+            <span class="method">GET · {{ endpoint.formato }}</span>
+            <code class="route">{{ endpoint.ruta }}</code>
+          </div>
+          <h3 id="{{ endpoint.ancla }}-title">{{ endpoint.titulo }}</h3>
+          <p>{{ endpoint.descripcion }}</p>
+
+          {% if endpoint.parametros %}
+          <div class="doc-table-wrap">
+            <table class="doc-table">
+              <thead><tr><th scope="col">Parámetro</th><th scope="col">Dónde</th><th scope="col">Tipo</th><th scope="col">Obligatorio</th><th scope="col">Descripción</th></tr></thead>
+              <tbody>
+                {% for parametro in endpoint.parametros %}
+                <tr>
+                  <td><code>{{ parametro.nombre }}</code></td>
+                  <td>{{ "ruta" if parametro.lugar == "path" else "consulta" }}</td>
+                  <td>{{ parametro.tipo }}</td>
+                  <td>{{ "Sí" if parametro.requerido or parametro.lugar == "path" else "No" }}</td>
+                  <td>{{ parametro.descripcion }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+
+          {% for ejemplo in endpoint.ejemplos %}
+          <div class="doc-example" data-format="{{ endpoint.formato }}" data-url="{{ ejemplo }}">
+            <code class="doc-example-url">GET {{ ejemplo }}</code>
+            <div class="doc-example-actions">
+              {% if endpoint.formato != "CSV" %}
+              <button type="button" class="doc-try">Probar aquí</button>
+              {% endif %}
+              <a href="{{ ejemplo }}" target="_blank" rel="noopener">Abrir ↗</a>
+              <button type="button" class="doc-copy">Copiar curl</button>
+            </div>
+            <p class="doc-example-status" aria-live="polite"></p>
+            <pre class="doc-example-output" hidden></pre>
+          </div>
+          {% endfor %}
+
+          {% if endpoint.errores %}
+          <ul class="doc-errors">
+            {% for codigo, mensaje in endpoint.errores %}
+            <li><strong>{{ codigo }}</strong> {{ mensaje }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </section>
+      {% endfor %}
+
+      <footer>
+        <div class="footer-copy">
+          <p>Catálogo basado en Wikipedia y Wikidata (CC BY-SA / CC0) · Fechas sujetas a cambios.</p>
+          <p>© Ignacio Egea 2026 · Tarea universitaria · Sin fines lucrativos</p>
+        </div>
+      </footer>
+    </main>
+  </body>
+</html>

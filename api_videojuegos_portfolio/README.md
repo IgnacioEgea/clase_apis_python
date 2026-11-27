@@ -51,6 +51,10 @@ Abre <http://127.0.0.1:5000/>.
 | `GET` | `/api/descubrir` | Colecciones para descubrir juegos |
 | `GET` | `/api/descubrir/<coleccion>?genero=rol&anio=2024&limite=20` | Juegos de una colección, ya ordenados |
 | `GET` | `/api/generos` | Géneros unificados y número de juegos de cada uno |
+| `GET` | `/api/videojuegos?anio=todos&q=resident` | Buscar en todos los años |
+| `GET` | `/api/videojuegos/<id>/similares` | Juegos parecidos a uno dado |
+| `GET` | `/api/docs` | Documentación interactiva de la API |
+| `GET` | `/api/openapi.json` | Especificación OpenAPI 3.1 |
 
 Ejemplo para consultar el catálogo:
 
@@ -78,6 +82,13 @@ categorías de Wikipedia se agrupan en 16 géneros en español (Acción, Rol,
 Shooter, Terror...). Las listas curadas están en `data/colecciones/` como CSV
 con la fuente de cada dato; los juegos que citan y no están en el catálogo
 reciben una ficha mínima para poder abrirlos igualmente.
+
+### Resúmenes
+
+Los CSV importados de Wikipedia casi nunca traen resumen. Los resúmenes redactados
+a mano (en español y sin destripes) están en `data/resumenes.csv` (`id,resumen`) y
+se aplican al cargar el catálogo, solo cuando el CSV del año no trae resumen.
+Así una nueva importación no los borra. Para añadir uno, basta con una línea nueva.
 
 ## Rendimiento
 

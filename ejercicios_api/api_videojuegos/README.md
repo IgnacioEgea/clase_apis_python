@@ -60,6 +60,10 @@ el puerto que Render proporciona por la variable `PORT`.
 - `GET /api/descubrir`: colecciones para descubrir juegos.
 - `GET /api/descubrir/<coleccion>?genero=rol&anio=2024&limite=20`: juegos de una colección, ya ordenados.
 - `GET /api/generos`: géneros unificados con su número de juegos.
+- `GET /api/videojuegos?anio=todos&q=resident`: buscar en todos los años (sin `anio`, una búsqueda con `q` también recorre todo el catálogo).
+- `GET /api/videojuegos/<id>/similares?limite=6`: juegos parecidos (misma saga, géneros, estudio y nota).
+- `GET /api/docs`: documentación interactiva de la API (con botón «Probar aquí» en cada ejemplo).
+- `GET /api/openapi.json`: la misma documentación en formato OpenAPI 3.1 (Postman, Insomnia, Swagger).
 
 Las imágenes originales se obtienen de páginas oficiales o fichas públicas. Las
 miniaturas de Metacritic se resuelven a la imagen original en vez de usar la
@@ -88,6 +92,13 @@ categorías de Wikipedia se agrupan en 16 géneros en español (Acción, Rol,
 Shooter, Terror...). Las listas curadas están en `data/colecciones/` como CSV
 con la fuente de cada dato; los juegos que citan y no están en el catálogo
 reciben una ficha mínima para poder abrirlos igualmente.
+
+### Resúmenes
+
+Los CSV importados de Wikipedia casi nunca traen resumen. Los resúmenes redactados
+a mano (en español y sin destripes) están en `data/resumenes.csv` (`id,resumen`) y
+se aplican al cargar el catálogo, solo cuando el CSV del año no trae resumen.
+Así una nueva importación no los borra. Para añadir uno, basta con una línea nueva.
 
 ## Actualizar el catálogo
 
