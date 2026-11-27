@@ -1089,5 +1089,28 @@ class MejorasBusquedaTests(unittest.TestCase):
         self.assertIn('id="similar-list"', html_portada)
 
 
+class ResumenesTests(unittest.TestCase):
+    """Resúmenes redactados a mano en data/resumenes.csv."""
+
+    def test_los_resumenes_apuntan_a_juegos_existentes(self):
+        resumenes = modulo_app.leer_resumenes()
+        self.assertGreater(len(resumenes), 150)
+        for videojuego_id, resumen in resumenes.items():
+            self.assertIn(videojuego_id, modulo_app.VIDEOJUEGOS_POR_ID)
+            self.assertLessEqual(len(resumen), 200, videojuego_id)
+
+    def test_la_api_devuelve_el_resumen_manual(self):
+        cliente = app.test_client()
+        juego = cliente.get("/api/videojuegos/baldur-s-gate-iii").get_json()
+        self.assertIn("Dungeons & Dragons", juego["resumen"])
+        anio = cliente.get("/api/videojuegos?anio=2023&q=baldur").get_json()
+        self.assertTrue(anio[0]["resumen"])
+
+    def test_un_resumen_del_csv_no_se_sobrescribe(self):
+        videojuego = {"id": "x", "resumen": "Original"}
+        modulo_app.con_resumen(videojuego, {"x": "Manual"})
+        self.assertEqual(videojuego["resumen"], "Original")
+
+
 if __name__ == "__main__":
     unittest.main()

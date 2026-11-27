@@ -81,6 +81,13 @@ Shooter, Terror...). Las listas curadas están en `data/colecciones/` como CSV
 con la fuente de cada dato; los juegos que citan y no están en el catálogo
 reciben una ficha mínima para poder abrirlos igualmente.
 
+### Resúmenes
+
+Los CSV importados de Wikipedia casi nunca traen resumen. Los resúmenes redactados
+a mano (en español y sin destripes) están en `data/resumenes.csv` (`id,resumen`) y
+se aplican al cargar el catálogo, solo cuando el CSV del año no trae resumen.
+Así una nueva importación no los borra. Para añadir uno, basta con una línea nueva.
+
 ## Rendimiento
 
 - Los CSV se leen una sola vez al arrancar: se preparan el índice de búsqueda,

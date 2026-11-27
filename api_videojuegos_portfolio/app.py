@@ -172,13 +172,39 @@ def categorias_unicas(videojuegos: Iterable[dict[str, str]]) -> tuple[str, ...]:
     )
 
 
+RESUMENES_PATH = BASE_DIR / "data" / "resumenes.csv"
+
+
+def leer_resumenes() -> dict[str, str]:
+    """Resúmenes redactados a mano, guardados aparte de los CSV importados.
+
+    Así una nueva importación del catálogo no los borra.
+    """
+    if not RESUMENES_PATH.exists():
+        return {}
+    with RESUMENES_PATH.open(encoding="utf-8-sig", newline="") as archivo:
+        return {
+            fila["id"]: fila["resumen"].strip()
+            for fila in csv.DictReader(archivo)
+            if fila.get("id") and fila.get("resumen", "").strip()
+        }
+
+
+def con_resumen(videojuego: dict[str, str], resumenes: dict[str, str]) -> dict[str, str]:
+    # El resumen del CSV del año tiene prioridad; el manual solo rellena huecos.
+    if not videojuego.get("resumen") and videojuego.get("id") in resumenes:
+        videojuego["resumen"] = resumenes[videojuego["id"]]
+    return videojuego
+
+
 def cargar_catalogo() -> None:
     """Lee los CSV una sola vez y prepara índices, categorías y JSON."""
     global ARCHIVOS, VIDEOJUEGOS_POR_ANIO, VIDEOJUEGOS_POR_ID
     global FICHAS_BUSQUEDA, CATEGORIAS_POR_ANIO, JSON_POR_ANIO
     ARCHIVOS = archivos_disponibles()
+    resumenes = leer_resumenes()
     VIDEOJUEGOS_POR_ANIO = {
-        anio: tuple(leer_videojuegos(path))
+        anio: tuple(con_resumen(videojuego, resumenes) for videojuego in leer_videojuegos(path))
         for anio, path in ARCHIVOS.items()
     }
     VIDEOJUEGOS_POR_ID = {
