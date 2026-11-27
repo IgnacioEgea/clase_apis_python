@@ -1479,6 +1479,212 @@ def descargar_videojuegos_csv():
     )
 
 
+# ---------------------------------------------------------------------------
+# Documentación de la API
+# ---------------------------------------------------------------------------
+# Una sola descripción sirve para la página /api/docs y para /api/openapi.json,
+# así las dos no se desincronizan. Un test comprueba que toda ruta pública /api
+# aparece aquí.
+@dataclass(frozen=True, slots=True)
+class Parametro:
+    nombre: str
+    lugar: str  # "query" o "path"
+    tipo: str
+    descripcion: str
+    requerido: bool = False
+    ejemplo: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class Endpoint:
+    ruta: str
+    titulo: str
+    descripcion: str
+    formato: str = "JSON"
+    parametros: tuple[Parametro, ...] = ()
+    ejemplos: tuple[str, ...] = ()
+    errores: tuple[tuple[int, str], ...] = ()
+    grupo: str = "Catálogo"
+
+    @property
+    def ancla(self) -> str:
+        return slug(self.ruta.replace("<", "").replace(">", "")) or "inicio"
+
+
+PARAMETRO_ANIO_COLECCION = Parametro(
+    "anio", "query", "integer", "Solo juegos de ese año (cuatro cifras).", ejemplo="2024"
+)
+PARAMETRO_GENERO = Parametro(
+    "genero", "query", "string", "Slug de género de /api/generos, por ejemplo rol o terror.",
+    ejemplo="rol",
+)
+ENDPOINTS: tuple[Endpoint, ...] = (
+    Endpoint(
+        "/api/anios", "Años disponibles",
+        "Lista los años con archivo de catálogo y si existe el archivo de juegos sin fecha.",
+        ejemplos=("/api/anios",),
+    ),
+    Endpoint(
+        "/api/videojuegos", "Buscar y listar videojuegos",
+        "Devuelve los juegos de un año, o de todo el catálogo con anio=todos. "
+        "La búsqueda por nombre tolera tildes, mayúsculas y pequeñas erratas. "
+        "Si se indica q sin anio, se busca en todos los años.",
+        parametros=(
+            Parametro("anio", "query", "string", "Año (2024), 'sin-fecha' o 'todos'. Obligatorio salvo que se indique q.", ejemplo="2024"),
+            Parametro("q", "query", "string", "Texto a buscar en el título.", ejemplo="resident evil"),
+            Parametro("categoria", "query", "string", "Categoría exacta tal y como la devuelve /api/categorias."),
+            Parametro("mes", "query", "integer", "Mes de salida, de 1 a 12.", ejemplo="10"),
+        ),
+        ejemplos=("/api/videojuegos?anio=2024&mes=10", "/api/videojuegos?q=resident evil"),
+        errores=((400, "Falta el año o el mes no es válido."), (404, "No existe archivo para ese año.")),
+    ),
+    Endpoint(
+        "/api/videojuegos/<videojuego_id>", "Ficha de un videojuego",
+        "Devuelve un juego por su identificador. También sirve para expansiones y "
+        "para los juegos citados en colecciones que no están en el catálogo.",
+        parametros=(Parametro("videojuego_id", "path", "string", "Identificador del juego.", True, "elden-ring"),),
+        ejemplos=("/api/videojuegos/elden-ring",),
+        errores=((404, "No existe ningún juego con ese identificador."),),
+    ),
+    Endpoint(
+        "/api/videojuegos/<videojuego_id>/similares", "Juegos parecidos",
+        "Recomienda juegos por saga, géneros en común, estudio, nota y cercanía de año. "
+        "Cada recomendación explica el motivo en el campo destacado.",
+        parametros=(
+            Parametro("videojuego_id", "path", "string", "Identificador del juego.", True, "elden-ring"),
+            Parametro("limite", "query", "integer", f"Número de recomendaciones (1-{LIMITE_SIMILARES_MAX}, por defecto {LIMITE_SIMILARES}).", ejemplo="6"),
+        ),
+        ejemplos=("/api/videojuegos/elden-ring/similares",),
+        errores=((400, "Límite fuera de rango."), (404, "No existe ningún juego con ese identificador.")),
+    ),
+    Endpoint(
+        "/api/categorias", "Categorías de un año",
+        "Categorías originales (de Wikipedia) presentes en un año, para usarlas en el filtro categoria.",
+        parametros=(Parametro("anio", "query", "string", "Año, 'sin-fecha' o 'todos'.", True, "2024"),),
+        ejemplos=("/api/categorias?anio=2024",),
+        errores=((404, "No existe archivo para ese año."),),
+    ),
+    Endpoint(
+        "/api/generos", "Géneros unificados",
+        "Los 16 géneros en español que agrupan las categorías de Wikipedia, con el número de juegos de cada uno.",
+        ejemplos=("/api/generos",), grupo="Descubrir",
+    ),
+    Endpoint(
+        "/api/descubrir", "Colecciones disponibles",
+        "Lista las colecciones para descubrir juegos con su descripción y su URL.",
+        ejemplos=("/api/descubrir",), grupo="Descubrir",
+    ),
+    Endpoint(
+        "/api/descubrir/<slug_coleccion>", "Juegos de una colección",
+        "Juegos de una colección ya ordenados por su criterio: "
+        + ", ".join(coleccion.slug for coleccion in COLECCIONES) + ".",
+        parametros=(
+            Parametro("slug_coleccion", "path", "string", "Colección de /api/descubrir.", True, "mejor-valorados"),
+            PARAMETRO_GENERO,
+            PARAMETRO_ANIO_COLECCION,
+            Parametro("limite", "query", "integer", f"Máximo de juegos (1-{LIMITE_COLECCION_MAX}, por defecto {LIMITE_COLECCION}).", ejemplo="10"),
+        ),
+        ejemplos=("/api/descubrir/mejor-valorados?genero=rol&limite=10", "/api/descubrir/goty"),
+        errores=((400, "Año, género o límite no válidos."), (404, "La colección no existe.")),
+        grupo="Descubrir",
+    ),
+    Endpoint(
+        "/imagenes/<videojuego_id>", "Portada de un videojuego",
+        "Portada del juego (oficial si se encuentra; si no, una ilustración SVG generada con su título).",
+        formato="Imagen",
+        parametros=(Parametro("videojuego_id", "path", "string", "Identificador del juego.", True, "astro-bot"),),
+        ejemplos=("/imagenes/astro-bot",),
+        errores=((404, "No existe ningún juego con ese identificador."),),
+        grupo="Archivos",
+    ),
+    Endpoint(
+        "/videojuegos.csv", "Descargar el CSV de un año",
+        "Descarga el archivo original del catálogo de un año (CSV o CSV comprimido).",
+        formato="CSV",
+        parametros=(Parametro("anio", "query", "string", "Año o 'sin-fecha'.", True, "2026"),),
+        ejemplos=("/videojuegos.csv?anio=2026",),
+        errores=((400, "Falta el año."), (404, "No existe archivo para ese año.")),
+        grupo="Archivos",
+    ),
+    Endpoint(
+        "/api/openapi.json", "Especificación OpenAPI",
+        "Esta misma documentación en formato OpenAPI 3.1, para importarla en Postman, Insomnia o Swagger.",
+        ejemplos=("/api/openapi.json",), grupo="Documentación",
+    ),
+)
+
+
+def especificacion_openapi() -> dict[str, object]:
+    tipos_contenido = {"JSON": "application/json", "CSV": "text/csv", "Imagen": "image/*"}
+    rutas: dict[str, object] = {}
+    for endpoint in ENDPOINTS:
+        ruta = re.sub(r"<([^>]+)>", r"{\1}", endpoint.ruta)
+        respuestas: dict[str, object] = {
+            "200": {
+                "description": "Respuesta correcta.",
+                "content": {tipos_contenido[endpoint.formato]: {}},
+            }
+        }
+        for codigo, mensaje in endpoint.errores:
+            respuestas[str(codigo)] = {
+                "description": mensaje,
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}},
+            }
+        rutas[ruta] = {
+            "get": {
+                "summary": endpoint.titulo,
+                "description": endpoint.descripcion,
+                "tags": [endpoint.grupo],
+                "operationId": endpoint.ancla,
+                "parameters": [
+                    {
+                        "name": parametro.nombre,
+                        "in": parametro.lugar,
+                        "required": parametro.requerido or parametro.lugar == "path",
+                        "description": parametro.descripcion,
+                        "schema": {"type": parametro.tipo},
+                        **({"example": parametro.ejemplo} if parametro.ejemplo else {}),
+                    }
+                    for parametro in endpoint.parametros
+                ],
+                "responses": respuestas,
+            }
+        }
+    return {
+        "openapi": "3.1.0",
+        "info": {
+            "title": "API Calendario PS5",
+            "version": "1.0.0",
+            "description": "Catálogo de videojuegos de PS5 por año, con búsqueda, fichas, colecciones y recomendaciones.",
+        },
+        "servers": [{"url": request.host_url.rstrip("/")}],
+        "paths": rutas,
+        "components": {
+            "schemas": {
+                "Error": {"type": "object", "properties": {"error": {"type": "string"}}}
+            }
+        },
+    }
+
+
+@app.route("/api/openapi.json", methods=["GET"])
+def obtener_openapi():
+    return jsonify(especificacion_openapi())
+
+
+@app.route("/api/docs", methods=["GET"])
+def documentacion_api():
+    grupos: dict[str, list[Endpoint]] = {}
+    for endpoint in ENDPOINTS:
+        grupos.setdefault(endpoint.grupo, []).append(endpoint)
+    return render_template(
+        "docs.html",
+        grupos=grupos,
+        base_url=request.host_url.rstrip("/"),
+        total=len(ENDPOINTS),
+    )
+
+
 cargar_catalogo()
 cargar_colecciones()
 

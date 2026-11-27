@@ -62,6 +62,8 @@ el puerto que Render proporciona por la variable `PORT`.
 - `GET /api/generos`: géneros unificados con su número de juegos.
 - `GET /api/videojuegos?anio=todos&q=resident`: buscar en todos los años (sin `anio`, una búsqueda con `q` también recorre todo el catálogo).
 - `GET /api/videojuegos/<id>/similares?limite=6`: juegos parecidos (misma saga, géneros, estudio y nota).
+- `GET /api/docs`: documentación interactiva de la API (con botón «Probar aquí» en cada ejemplo).
+- `GET /api/openapi.json`: la misma documentación en formato OpenAPI 3.1 (Postman, Insomnia, Swagger).
 
 Las imágenes originales se obtienen de páginas oficiales o fichas públicas. Las
 miniaturas de Metacritic se resuelven a la imagen original en vez de usar la

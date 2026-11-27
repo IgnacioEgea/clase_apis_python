@@ -1112,5 +1112,44 @@ class ResumenesTests(unittest.TestCase):
         self.assertEqual(videojuego["resumen"], "Original")
 
 
+class DocumentacionTests(unittest.TestCase):
+    """Página /api/docs y especificación /api/openapi.json."""
+
+    RUTAS_NO_PUBLICAS = {"/api/clientes", "/api/docs"}
+
+    def setUp(self):
+        self.cliente = app.test_client()
+
+    def test_todas_las_rutas_publicas_estan_documentadas(self):
+        documentadas = {endpoint.ruta for endpoint in modulo_app.ENDPOINTS}
+        for regla in app.url_map.iter_rules():
+            ruta = str(regla)
+            es_publica = ruta.startswith(("/api/", "/imagenes/")) or ruta.endswith(".csv")
+            if es_publica and ruta not in self.RUTAS_NO_PUBLICAS:
+                self.assertIn(ruta, documentadas, f"Falta documentar {ruta}")
+
+    def test_los_ejemplos_de_la_documentacion_funcionan(self):
+        with patch.object(modulo_app, "obtener_portada", return_value=None):
+            for endpoint in modulo_app.ENDPOINTS:
+                for ejemplo in endpoint.ejemplos:
+                    with self.subTest(ejemplo=ejemplo):
+                        self.assertEqual(self.cliente.get(ejemplo).status_code, 200)
+
+    def test_openapi_describe_las_mismas_rutas(self):
+        especificacion = self.cliente.get("/api/openapi.json").get_json()
+        self.assertEqual(especificacion["openapi"], "3.1.0")
+        self.assertEqual(len(especificacion["paths"]), len(modulo_app.ENDPOINTS))
+        similares = especificacion["paths"]["/api/videojuegos/{videojuego_id}/similares"]["get"]
+        nombres = [parametro["name"] for parametro in similares["parameters"]]
+        self.assertEqual(nombres, ["videojuego_id", "limite"])
+        self.assertIn("404", similares["responses"])
+
+    def test_la_pagina_de_documentacion_lista_cada_endpoint(self):
+        html_docs = self.cliente.get("/api/docs").get_data(as_text=True)
+        for endpoint in modulo_app.ENDPOINTS:
+            self.assertIn(f'id="{endpoint.ancla}"', html_docs)
+        self.assertIn("/api/docs", self.cliente.get("/").get_data(as_text=True))
+
+
 if __name__ == "__main__":
     unittest.main()

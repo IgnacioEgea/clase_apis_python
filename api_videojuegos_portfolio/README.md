@@ -53,6 +53,8 @@ Abre <http://127.0.0.1:5000/>.
 | `GET` | `/api/generos` | Géneros unificados y número de juegos de cada uno |
 | `GET` | `/api/videojuegos?anio=todos&q=resident` | Buscar en todos los años |
 | `GET` | `/api/videojuegos/<id>/similares` | Juegos parecidos a uno dado |
+| `GET` | `/api/docs` | Documentación interactiva de la API |
+| `GET` | `/api/openapi.json` | Especificación OpenAPI 3.1 |
 
 Ejemplo para consultar el catálogo:
 

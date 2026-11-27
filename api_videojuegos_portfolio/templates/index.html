@@ -16,6 +16,7 @@
           <span>Calendario PS5</span>
         </a>
         <nav class="topbar-actions" aria-label="Navegación principal">
+          <a class="nav-link" href="{{ url_for('documentacion_api') }}">Documentación API</a>
           <a class="nav-link" href="{{ url_for('pagina_clientes') }}">Análisis de clientes</a>
           {% if gamer_mode %}
           <a class="nav-link nav-link-primary" href="{{ url_for('home') }}">Diseño original</a>
@@ -104,7 +105,7 @@
         <div class="section-heading">
           <div>
             <h2 id="endpoints-title">Acceso rápido</h2>
-            <p>Consulta los datos de un año concreto o descarga su archivo CSV.</p>
+            <p>Consulta los datos de un año concreto o descarga su archivo CSV. <a href="{{ url_for('documentacion_api') }}">Ver la documentación completa de la API →</a></p>
           </div>
         </div>
         <div class="endpoint-grid">
