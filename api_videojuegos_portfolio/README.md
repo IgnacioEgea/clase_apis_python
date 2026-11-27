@@ -51,6 +51,8 @@ Abre <http://127.0.0.1:5000/>.
 | `GET` | `/api/descubrir` | Colecciones para descubrir juegos |
 | `GET` | `/api/descubrir/<coleccion>?genero=rol&anio=2024&limite=20` | Juegos de una colección, ya ordenados |
 | `GET` | `/api/generos` | Géneros unificados y número de juegos de cada uno |
+| `GET` | `/api/videojuegos?anio=todos&q=resident` | Buscar en todos los años |
+| `GET` | `/api/videojuegos/<id>/similares` | Juegos parecidos a uno dado |
 
 Ejemplo para consultar el catálogo:
 

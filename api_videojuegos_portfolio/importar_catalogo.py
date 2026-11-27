@@ -302,7 +302,11 @@ def records_from_html(
             game_id = f"{game_id}-{suffix}"
         identifiers.add(game_id)
 
-        genres = str(row[1].get("value", "")).strip()
+        # Algunas celdas de Wikipedia arrastran el CSS de la lista (".mw-parser-output
+        # .hlist {...}") delante del género; se quita para quedarnos solo con el texto.
+        genres = re.sub(
+            r"(?:\.mw-parser-output[^{]*\{[^}]*\})+", "", str(row[1].get("value", ""))
+        ).strip()
         developers = str(row[2].get("value", "")).strip()
         href = str(row[0].get("href", "")).strip()
         source = f"https://en.wikipedia.org{href}" if href.startswith("/wiki/") else list_url

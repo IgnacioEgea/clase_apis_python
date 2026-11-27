@@ -67,7 +67,7 @@
             <summary><span class="guide-number">02</span>Busca y filtra</summary>
             <div class="guide-step-content">
               <p>¿Buscas ideas? En «Descubre juegos» tienes colecciones como los mejor valorados o los GOTY. <a href="#descubrir">Ir a Descubre juegos</a>.</p>
-              <p>Si ya sabes qué quieres, escribe el nombre o parte del título. Despliega los filtros opcionales para limitar por categoría o mes y ordenar por fecha; después pulsa «Buscar».</p>
+              <p>Si ya sabes qué quieres, escribe el nombre o parte del título; si no recuerdas el año, elige «Todos los años». Despliega los filtros opcionales para limitar por categoría o mes y ordenar por fecha; después pulsa «Buscar».</p>
             </div>
           </details>
           <details class="guide-step">
@@ -204,6 +204,7 @@
           <div class="primary-search">
             <label class="filter-field" for="anio">Año
               <select id="anio" name="anio" required>
+                <option value="todos">Todos los años</option>
                 {% for anio in anios %}
                 <option value="{{ anio }}" {% if anio == anio_inicial %}selected{% endif %}>{{ anio }}</option>
                 {% endfor %}
@@ -289,8 +290,14 @@
               </section>
               <div class="detail-actions">
                 <button class="favorite-toggle" id="favorite-toggle" type="button" aria-pressed="false">☆ Añadir a favoritos</button>
+                <button class="share-link" id="share-link" type="button">🔗 Copiar enlace</button>
                 <a class="detail-source" id="detail-source" target="_blank" rel="noopener">Consultar fuente ↗</a>
               </div>
+              <p class="share-message" id="share-message" aria-live="polite"></p>
+              <section class="similar-section" id="similar-section" hidden aria-labelledby="similar-title">
+                <h4 id="similar-title">Si te gusta, prueba también</h4>
+                <ul class="similar-list" id="similar-list"></ul>
+              </section>
             </div>
             <figure class="game-cover" id="game-cover" hidden>
               <button class="cover-zoom" id="cover-zoom" type="button" aria-label="Ampliar portada">
