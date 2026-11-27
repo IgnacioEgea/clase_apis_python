@@ -301,6 +301,8 @@ def filtrar_videojuegos(
     consulta: str,
     categoria: str,
     mes: str,
+    genero: str = "",
+    nota_minima: int | None = None,
 ) -> Iterator[dict[str, str]]:
     # La consulta y la categoría se normalizan una vez por petición, no por juego.
     terminos = normalizar_texto(consulta).split() if consulta else []
@@ -308,6 +310,12 @@ def filtrar_videojuegos(
     for videojuego in videojuegos:
         if categoria and ficha_busqueda(videojuego).categoria != categoria_normalizada:
             continue
+        if genero and genero not in GENEROS_POR_JUEGO.get(videojuego.get("id", ""), ()):
+            continue
+        if nota_minima is not None:
+            valor = nota(videojuego, "puntuacion_metacritic_criticos")
+            if valor is None or valor < nota_minima:
+                continue
         if mes and not videojuego.get("fecha_salida", "").startswith(
             f"{videojuego.get('anio_salida', '')}-{mes}-"
         ):
@@ -889,14 +897,45 @@ def obtener_videojuegos():
         return jsonify({"error": "El mes debe ser un número entre 1 y 12."}), 400
     if mes:
         mes = f"{int(mes):02d}"
-    if consulta or categoria or mes:
-        cuerpo = serializar_json(
-            filtrar_videojuegos(videojuegos, consulta, categoria, mes)
-        )
+    genero = request.args.get("genero", "").strip()
+    if genero and genero not in NOMBRES_GENERO:
+        return jsonify({
+            "error": "Género no válido. Consulta /api/generos para ver los disponibles."
+        }), 400
+    nota_texto = request.args.get("nota_min", "").strip()
+    if nota_texto and (not nota_texto.isdecimal() or not 0 <= int(nota_texto) <= 100):
+        return jsonify({"error": "La nota mínima debe ser un número entre 0 y 100."}), 400
+    nota_minima = int(nota_texto) if nota_texto else None
+    orden = request.args.get("orden", "fecha").strip() or "fecha"
+    if orden not in ORDENES_VIDEOJUEGOS:
+        return jsonify({
+            "error": "El orden debe ser " + ", ".join(ORDENES_VIDEOJUEGOS) + "."
+        }), 400
+    if consulta or categoria or mes or genero or nota_minima is not None or orden != "fecha":
+        resultado = list(filtrar_videojuegos(
+            videojuegos, consulta, categoria, mes, genero, nota_minima
+        ))
+        ordenar_videojuegos(resultado, orden)
+        cuerpo = serializar_json(resultado)
     else:
         # El catálogo completo de cada año ya está serializado desde el arranque.
         cuerpo = JSON_POR_ANIO[clave_anio]
     return respuesta_json_cacheable(cuerpo)
+
+
+ORDENES_VIDEOJUEGOS = ("fecha", "nota", "titulo")
+
+
+def ordenar_videojuegos(videojuegos: list[dict[str, str]], orden: str) -> None:
+    """Ordena en el sitio. "fecha" respeta el orden de los CSV (cronológico)."""
+    if orden == "nota":
+        # Mejor nota primero; los juegos sin nota van al final.
+        videojuegos.sort(key=lambda juego: (
+            -(nota(juego, "puntuacion_metacritic_criticos") or -1),
+            juego.get("titulo", "").casefold(),
+        ))
+    elif orden == "titulo":
+        videojuegos.sort(key=lambda juego: normalizar_texto(juego.get("titulo", "")))
 
 
 def respuesta_json_cacheable(cuerpo: bytes) -> Response:
@@ -1534,9 +1573,16 @@ ENDPOINTS: tuple[Endpoint, ...] = (
             Parametro("q", "query", "string", "Texto a buscar en el título.", ejemplo="resident evil"),
             Parametro("categoria", "query", "string", "Categoría exacta tal y como la devuelve /api/categorias."),
             Parametro("mes", "query", "integer", "Mes de salida, de 1 a 12.", ejemplo="10"),
+            PARAMETRO_GENERO,
+            Parametro("nota_min", "query", "integer", "Nota mínima de la crítica en Metacritic (0-100). Excluye los juegos sin nota.", ejemplo="85"),
+            Parametro("orden", "query", "string", "fecha (por defecto), nota (mejor primero) o titulo (A-Z).", ejemplo="nota"),
         ),
-        ejemplos=("/api/videojuegos?anio=2024&mes=10", "/api/videojuegos?q=resident evil"),
-        errores=((400, "Falta el año o el mes no es válido."), (404, "No existe archivo para ese año.")),
+        ejemplos=(
+            "/api/videojuegos?anio=2024&mes=10",
+            "/api/videojuegos?q=resident evil",
+            "/api/videojuegos?anio=2024&genero=rol&nota_min=85&orden=nota",
+        ),
+        errores=((400, "Falta el año, o el mes, género, nota mínima u orden no son válidos."), (404, "No existe archivo para ese año.")),
     ),
     Endpoint(
         "/api/videojuegos/<videojuego_id>", "Ficha de un videojuego",

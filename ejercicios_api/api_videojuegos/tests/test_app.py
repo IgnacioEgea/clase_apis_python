@@ -1151,5 +1151,41 @@ class DocumentacionTests(unittest.TestCase):
         self.assertIn("/api/docs", self.cliente.get("/").get_data(as_text=True))
 
 
+class FiltroNotaTests(unittest.TestCase):
+    """Filtros de género y nota mínima, y orden en /api/videojuegos."""
+
+    def setUp(self):
+        self.cliente = app.test_client()
+
+    def test_rpg_de_2024_con_mas_de_85_ordenados_por_nota(self):
+        juegos = self.cliente.get(
+            "/api/videojuegos?anio=2024&genero=rol&nota_min=85&orden=nota"
+        ).get_json()
+        self.assertTrue(juegos)
+        notas = [int(juego["puntuacion_metacritic_criticos"]) for juego in juegos]
+        self.assertTrue(all(nota >= 85 for nota in notas))
+        self.assertEqual(notas, sorted(notas, reverse=True))
+        for juego in juegos:
+            self.assertIn("rol", modulo_app.GENEROS_POR_JUEGO[juego["id"]])
+
+    def test_orden_por_titulo_y_por_defecto_por_fecha(self):
+        titulos = [j["titulo"] for j in self.cliente.get("/api/videojuegos?anio=2023&orden=titulo").get_json()]
+        self.assertEqual(titulos, sorted(titulos, key=modulo_app.normalizar_texto))
+        por_defecto = self.cliente.get("/api/videojuegos?anio=2023").get_json()
+        explicito = self.cliente.get("/api/videojuegos?anio=2023&orden=fecha").get_json()
+        self.assertEqual(por_defecto, explicito)
+
+    def test_orden_por_nota_deja_al_final_los_juegos_sin_nota(self):
+        juegos = self.cliente.get("/api/videojuegos?anio=2023&orden=nota").get_json()
+        tiene_nota = [bool(j["puntuacion_metacritic_criticos"]) for j in juegos]
+        self.assertEqual(tiene_nota, sorted(tiene_nota, reverse=True))
+
+    def test_parametros_no_validos(self):
+        for consulta in ("nota_min=101", "nota_min=abc", "genero=inventado", "orden=azar"):
+            with self.subTest(consulta=consulta):
+                respuesta = self.cliente.get(f"/api/videojuegos?anio=2024&{consulta}")
+                self.assertEqual(respuesta.status_code, 400)
+
+
 if __name__ == "__main__":
     unittest.main()

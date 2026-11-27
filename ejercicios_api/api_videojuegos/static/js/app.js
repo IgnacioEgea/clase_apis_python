@@ -9,6 +9,8 @@
   const yearSelect = document.getElementById("anio");
   const categorySelect = document.getElementById("categoria");
   const monthSelect = document.getElementById("mes");
+  const genreSelect = document.getElementById("genero-filtro");
+  const scoreSelect = document.getElementById("nota-min");
   const orderSelect = document.getElementById("orden");
   const submitButton = document.getElementById("search-button");
   const status = document.getElementById("search-status");
@@ -292,6 +294,8 @@
     input.value = entry.titulo;
     categorySelect.value = "";
     monthSelect.value = "";
+    genreSelect.value = "";
+    scoreSelect.value = "";
     updateActiveFilters();
 
     try {
@@ -403,13 +407,15 @@
 
   function updateActiveFilters() {
     const filters = [];
+    if (genreSelect.value) filters.push(genreSelect.selectedOptions[0].textContent);
+    if (scoreSelect.value) filters.push(`Nota ${scoreSelect.value}+`);
     if (categorySelect.value) filters.push(categorySelect.value);
     if (monthSelect.value) {
       filters.push(monthSelect.selectedOptions[0].textContent);
     }
     activeFilters.replaceChildren();
     if (!filters.length) {
-      activeFilters.textContent = "Sin filtros de categoría o mes.";
+      activeFilters.textContent = "Sin filtros de género, nota, categoría o mes.";
       return;
     }
     const label = document.createElement("strong");
@@ -588,8 +594,15 @@
   function renderGames(games) {
     currentGames = games;
     const direction = orderSelect.value === "desc" ? -1 : 1;
+    const score = (game) => Number(game.puntuacion_metacritic_criticos) || -1;
     // Las colecciones ya llegan ordenadas por su criterio (nota, ranking…).
     const ordered = currentCollection ? [...games] : [...games].sort((left, right) => {
+      if (orderSelect.value === "nota") {
+        return score(right) - score(left) || left.titulo.localeCompare(right.titulo, "es");
+      }
+      if (orderSelect.value === "titulo") {
+        return left.titulo.localeCompare(right.titulo, "es", { sensitivity: "base" });
+      }
       const leftDate = left.fecha_salida || "9999-99-99";
       const rightDate = right.fecha_salida || "9999-99-99";
       if (leftDate === "9999-99-99" && rightDate !== leftDate) return 1;
@@ -625,6 +638,16 @@
         titleBlock.append(title, badge);
         button.append(rank, titleBlock);
         button.addEventListener("click", () => selectGame(game, button));
+      } else if (Number(game.puntuacion_metacritic_criticos) > 0) {
+        // Con nota publicada, se muestra junto al título para comparar de un vistazo.
+        const titleBlock = document.createElement("span");
+        const badge = document.createElement("span");
+        titleBlock.className = "game-card-title";
+        badge.className = "game-badge";
+        badge.textContent = `${game.puntuacion_metacritic_criticos} Metacritic`;
+        titleBlock.append(title, badge);
+        button.append(date, titleBlock);
+        button.addEventListener("click", () => selectGame(game, button));
       } else {
         button.append(date, title);
         button.addEventListener("click", () => selectGame(game, button));
@@ -641,10 +664,24 @@
   }
 
   orderSelect.addEventListener("change", () => {
-    if (!currentCollection) renderGames(currentGames);
+    if (currentCollection) return;
+    renderGames(currentGames);
+    // El enlace al JSON refleja también el orden elegido.
+    const href = openJson.getAttribute("href");
+    if (href && !selectedGame) {
+      const url = new URL(href, window.location.href);
+      if (["nota", "titulo"].includes(orderSelect.value)) {
+        url.searchParams.set("orden", orderSelect.value);
+      } else {
+        url.searchParams.delete("orden");
+      }
+      openJson.href = url.toString();
+    }
   });
   yearSelect.addEventListener("change", () => form.requestSubmit());
   categorySelect.addEventListener("change", () => form.requestSubmit());
+  genreSelect.addEventListener("change", () => form.requestSubmit());
+  scoreSelect.addEventListener("change", () => form.requestSubmit());
   monthSelect.addEventListener("change", () => form.requestSubmit());
   document.querySelectorAll(".year-shortcut").forEach((button) => {
     button.addEventListener("click", () => {
@@ -652,6 +689,8 @@
       input.value = "";
       categorySelect.value = "";
       monthSelect.value = "";
+      genreSelect.value = "";
+      scoreSelect.value = "";
       updateActiveFilters();
       form.requestSubmit();
       document.getElementById("catalog-title").scrollIntoView({
@@ -870,6 +909,12 @@
       if (query) apiUrl.searchParams.set("q", query);
       if (categoria) apiUrl.searchParams.set("categoria", categoria);
       if (mes) apiUrl.searchParams.set("mes", mes);
+      if (genreSelect.value) apiUrl.searchParams.set("genero", genreSelect.value);
+      if (scoreSelect.value) apiUrl.searchParams.set("nota_min", scoreSelect.value);
+      // El orden se aplica en la página; se añade a la URL para que el JSON coincida.
+      if (["nota", "titulo"].includes(orderSelect.value)) {
+        apiUrl.searchParams.set("orden", orderSelect.value);
+      }
       const data = await fetchJson(apiUrl);
       if (requestVersion !== catalogRequestVersion) return;
       output.textContent = JSON.stringify(data, null, 2);
@@ -878,7 +923,9 @@
       renderGames(data);
       status.textContent = data.length
         ? `${data.length} juego${data.length === 1 ? "" : "s"} encontrado${data.length === 1 ? "" : "s"}.`
-        : "No hay coincidencias para esa consulta en el archivo seleccionado.";
+        : scoreSelect.value
+          ? "Ningún juego cumple esos filtros. Ten en cuenta que no todos los juegos tienen nota de Metacritic."
+          : "No hay coincidencias para esa consulta en el archivo seleccionado.";
       summary.textContent = `Calendario PS5 · ${yearLabel(anio)} · ${data.length} registro${data.length === 1 ? "" : "s"}`;
       updateActiveFilters();
       if (query && data.length) {
