@@ -9,6 +9,8 @@
   const yearSelect = document.getElementById("anio");
   const categorySelect = document.getElementById("categoria");
   const monthSelect = document.getElementById("mes");
+  const genreSelect = document.getElementById("genero-filtro");
+  const scoreSelect = document.getElementById("nota-min");
   const orderSelect = document.getElementById("orden");
   const submitButton = document.getElementById("search-button");
   const status = document.getElementById("search-status");
@@ -87,6 +89,17 @@
   const discoverGenre = document.getElementById("discover-genre");
   const discoverYear = document.getElementById("discover-year");
   const discoverDescription = document.getElementById("discover-description");
+
+  const shareButton = document.getElementById("share-link");
+  const shareMessage = document.getElementById("share-message");
+  const similarSection = document.getElementById("similar-section");
+  const similarList = document.getElementById("similar-list");
+
+  function yearLabel(anio) {
+    if (anio === "todos") return "todos los años";
+    if (anio === "sin-fecha") return "sin fecha";
+    return anio;
+  }
 
   // Año del archivo donde vive un juego: lo usan el historial y los favoritos.
   function gameYear(game) {
@@ -281,6 +294,8 @@
     input.value = entry.titulo;
     categorySelect.value = "";
     monthSelect.value = "";
+    genreSelect.value = "";
+    scoreSelect.value = "";
     updateActiveFilters();
 
     try {
@@ -299,7 +314,7 @@
       if (!gameButton) {
         throw new Error(`No se pudo mostrar el videojuego guardado en ${origin}.`);
       }
-      selectGame(game, gameButton, entry.anio);
+      selectGame(game, gameButton);
       favoritesMessage.textContent = "";
     } catch (error) {
       if (requestVersion !== catalogRequestVersion) return;
@@ -324,7 +339,7 @@
         {
           id: selectedGame.id,
           titulo: selectedGame.titulo,
-          anio: currentCollection ? gameYear(selectedGame) : yearSelect.value,
+          anio: gameYear(selectedGame),
         },
         ...favorites,
       ];
@@ -392,13 +407,15 @@
 
   function updateActiveFilters() {
     const filters = [];
+    if (genreSelect.value) filters.push(genreSelect.selectedOptions[0].textContent);
+    if (scoreSelect.value) filters.push(`Nota ${scoreSelect.value}+`);
     if (categorySelect.value) filters.push(categorySelect.value);
     if (monthSelect.value) {
       filters.push(monthSelect.selectedOptions[0].textContent);
     }
     activeFilters.replaceChildren();
     if (!filters.length) {
-      activeFilters.textContent = "Sin filtros de categoría o mes.";
+      activeFilters.textContent = "Sin filtros de género, nota, categoría o mes.";
       return;
     }
     const label = document.createElement("strong");
@@ -577,8 +594,15 @@
   function renderGames(games) {
     currentGames = games;
     const direction = orderSelect.value === "desc" ? -1 : 1;
+    const score = (game) => Number(game.puntuacion_metacritic_criticos) || -1;
     // Las colecciones ya llegan ordenadas por su criterio (nota, ranking…).
     const ordered = currentCollection ? [...games] : [...games].sort((left, right) => {
+      if (orderSelect.value === "nota") {
+        return score(right) - score(left) || left.titulo.localeCompare(right.titulo, "es");
+      }
+      if (orderSelect.value === "titulo") {
+        return left.titulo.localeCompare(right.titulo, "es", { sensitivity: "base" });
+      }
       const leftDate = left.fecha_salida || "9999-99-99";
       const rightDate = right.fecha_salida || "9999-99-99";
       if (leftDate === "9999-99-99" && rightDate !== leftDate) return 1;
@@ -613,7 +637,17 @@
         badge.textContent = game.destacado || "";
         titleBlock.append(title, badge);
         button.append(rank, titleBlock);
-        button.addEventListener("click", () => selectGame(game, button, gameYear(game)));
+        button.addEventListener("click", () => selectGame(game, button));
+      } else if (Number(game.puntuacion_metacritic_criticos) > 0) {
+        // Con nota publicada, se muestra junto al título para comparar de un vistazo.
+        const titleBlock = document.createElement("span");
+        const badge = document.createElement("span");
+        titleBlock.className = "game-card-title";
+        badge.className = "game-badge";
+        badge.textContent = `${game.puntuacion_metacritic_criticos} Metacritic`;
+        titleBlock.append(title, badge);
+        button.append(date, titleBlock);
+        button.addEventListener("click", () => selectGame(game, button));
       } else {
         button.append(date, title);
         button.addEventListener("click", () => selectGame(game, button));
@@ -630,10 +664,24 @@
   }
 
   orderSelect.addEventListener("change", () => {
-    if (!currentCollection) renderGames(currentGames);
+    if (currentCollection) return;
+    renderGames(currentGames);
+    // El enlace al JSON refleja también el orden elegido.
+    const href = openJson.getAttribute("href");
+    if (href && !selectedGame) {
+      const url = new URL(href, window.location.href);
+      if (["nota", "titulo"].includes(orderSelect.value)) {
+        url.searchParams.set("orden", orderSelect.value);
+      } else {
+        url.searchParams.delete("orden");
+      }
+      openJson.href = url.toString();
+    }
   });
   yearSelect.addEventListener("change", () => form.requestSubmit());
   categorySelect.addEventListener("change", () => form.requestSubmit());
+  genreSelect.addEventListener("change", () => form.requestSubmit());
+  scoreSelect.addEventListener("change", () => form.requestSubmit());
   monthSelect.addEventListener("change", () => form.requestSubmit());
   document.querySelectorAll(".year-shortcut").forEach((button) => {
     button.addEventListener("click", () => {
@@ -641,6 +689,8 @@
       input.value = "";
       categorySelect.value = "";
       monthSelect.value = "";
+      genreSelect.value = "";
+      scoreSelect.value = "";
       updateActiveFilters();
       form.requestSubmit();
       document.getElementById("catalog-title").scrollIntoView({
@@ -650,7 +700,10 @@
     });
   });
 
-  function selectGame(game, selectedButton, anio = yearSelect.value) {
+  function selectGame(game, selectedButton) {
+    // El año guardado es siempre el del archivo del juego, aunque se haya
+    // encontrado buscando en «Todos los años» o en una colección.
+    const anio = gameYear(game);
     selectionVersion += 1;
     selectedGame = game;
     selectedGameId = game.id;
@@ -741,9 +794,70 @@
     summary.textContent = `Ficha JSON · ${game.titulo}`;
     catalogSummary.textContent = currentCollection
       ? `${currentCollection.titulo} · juego seleccionado`
-      : `Juego seleccionado · ${anio}`;
+      : `Juego seleccionado · ${yearLabel(anio)}`;
     saveSelectedGame(game, anio);
+    shareMessage.textContent = "";
+    try {
+      // La dirección de la página apunta al juego abierto para poder compartirla.
+      window.history.replaceState(null, "", gameShareUrl(game));
+    } catch {
+      // Algunos navegadores bloquean replaceState en contextos especiales.
+    }
+    loadSimilar(game, selectionVersion);
     gameDetail.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function gameShareUrl(game) {
+    const url = new URL(window.location.pathname, window.location.href);
+    url.searchParams.set("juego", game.id);
+    return url.toString();
+  }
+
+  shareButton.addEventListener("click", async () => {
+    if (!selectedGame) return;
+    const url = gameShareUrl(selectedGame);
+    try {
+      await navigator.clipboard.writeText(url);
+      shareMessage.textContent = "Enlace copiado. Quien lo abra verá esta ficha.";
+    } catch {
+      shareMessage.textContent = `Copia este enlace: ${url}`;
+    }
+  });
+
+  async function loadSimilar(game, version) {
+    similarSection.hidden = true;
+    similarList.replaceChildren();
+    try {
+      const data = await fetchJson(
+        `/api/videojuegos/${encodeURIComponent(game.id)}/similares`
+      );
+      if (version !== selectionVersion || !data.similares.length) return;
+      data.similares.forEach((similar) => {
+        const item = document.createElement("li");
+        const button = document.createElement("button");
+        const name = document.createElement("strong");
+        const reason = document.createElement("span");
+        button.type = "button";
+        button.className = "similar-card";
+        name.textContent = similar.titulo;
+        reason.textContent = [formatListDate(similar), similar.destacado]
+          .filter(Boolean)
+          .join(" · ");
+        button.append(name, reason);
+        button.addEventListener("click", () => {
+          gameList.querySelectorAll(".game-card").forEach((card) => {
+            card.setAttribute("aria-pressed", "false");
+          });
+          selectGame(similar, null);
+          gameDetail.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        item.append(button);
+        similarList.append(item);
+      });
+      similarSection.hidden = false;
+    } catch {
+      // Las recomendaciones son un extra: si fallan, la ficha sigue igual.
+    }
   }
 
   form.addEventListener("submit", async (event) => {
@@ -759,10 +873,18 @@
     openJson.setAttribute("aria-disabled", "true");
     submitButton.disabled = true;
     submitButton.textContent = "Buscando…";
-    status.textContent = `Leyendo el archivo CSV de ${anio}…`;
+    status.textContent = anio === "todos"
+      ? "Buscando en todos los años…"
+      : `Leyendo el archivo CSV de ${yearLabel(anio)}…`;
     summary.textContent = query
-      ? `Búsqueda: “${query}” · ${anio}`
-      : `Calendario completo · ${anio}`;
+      ? `Búsqueda: “${query}” · ${yearLabel(anio)}`
+      : `Calendario completo · ${yearLabel(anio)}`;
+    try {
+      // Una búsqueda nueva deja de apuntar al juego compartido.
+      window.history.replaceState(null, "", window.location.pathname);
+    } catch {
+      // Sin replaceState la búsqueda funciona igual.
+    }
     output.textContent = "";
     gameList.replaceChildren();
     gameList.scrollTop = 0;
@@ -787,6 +909,12 @@
       if (query) apiUrl.searchParams.set("q", query);
       if (categoria) apiUrl.searchParams.set("categoria", categoria);
       if (mes) apiUrl.searchParams.set("mes", mes);
+      if (genreSelect.value) apiUrl.searchParams.set("genero", genreSelect.value);
+      if (scoreSelect.value) apiUrl.searchParams.set("nota_min", scoreSelect.value);
+      // El orden se aplica en la página; se añade a la URL para que el JSON coincida.
+      if (["nota", "titulo"].includes(orderSelect.value)) {
+        apiUrl.searchParams.set("orden", orderSelect.value);
+      }
       const data = await fetchJson(apiUrl);
       if (requestVersion !== catalogRequestVersion) return;
       output.textContent = JSON.stringify(data, null, 2);
@@ -795,12 +923,14 @@
       renderGames(data);
       status.textContent = data.length
         ? `${data.length} juego${data.length === 1 ? "" : "s"} encontrado${data.length === 1 ? "" : "s"}.`
-        : "No hay coincidencias para esa consulta en el archivo seleccionado.";
-      summary.textContent = `Calendario PS5 ${anio} · ${data.length} registro${data.length === 1 ? "" : "s"}`;
+        : scoreSelect.value
+          ? "Ningún juego cumple esos filtros. Ten en cuenta que no todos los juegos tienen nota de Metacritic."
+          : "No hay coincidencias para esa consulta en el archivo seleccionado.";
+      summary.textContent = `Calendario PS5 · ${yearLabel(anio)} · ${data.length} registro${data.length === 1 ? "" : "s"}`;
       updateActiveFilters();
       if (query && data.length) {
         const firstCard = gameList.querySelector(".game-card");
-        if (firstCard) selectGame(data[0], firstCard, anio);
+        if (firstCard) selectGame(data[0], firstCard);
       }
     } catch (error) {
       if (requestVersion !== catalogRequestVersion) return;
@@ -896,6 +1026,21 @@
     .catch((error) => {
       status.textContent = error.message || "No se pudieron cargar las categorías.";
     });
+  // Un enlace compartido (?juego=<id>) abre directamente esa ficha.
+  const sharedId = new URLSearchParams(window.location.search).get("juego");
+  if (sharedId) {
+    fetchJson(`/api/videojuegos/${encodeURIComponent(sharedId)}`)
+      .then((game) => {
+        openSavedGame(
+          { id: game.id, titulo: game.titulo, anio: gameYear(game) },
+          "el enlace compartido"
+        );
+        document.getElementById("catalog-title").scrollIntoView({ block: "start" });
+      })
+      .catch(() => {
+        status.textContent = "El juego del enlace ya no está en el catálogo.";
+      });
+  }
   history = readHistory();
   renderHistory();
   favorites = readFavorites();

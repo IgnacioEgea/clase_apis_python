@@ -108,6 +108,8 @@ VIDEOJUEGOS_POR_ID: dict[str, dict[str, str]] = {}
 FICHAS_BUSQUEDA: dict[int, FichaBusqueda] = {}
 CATEGORIAS_POR_ANIO: dict[str, tuple[str, ...]] = {}
 JSON_POR_ANIO: dict[str, bytes] = {}
+# Clave especial para buscar en el catálogo completo, sin elegir año.
+TODOS_LOS_ANIOS = "todos"
 
 
 def archivos_disponibles() -> dict[str, Path]:
@@ -170,13 +172,39 @@ def categorias_unicas(videojuegos: Iterable[dict[str, str]]) -> tuple[str, ...]:
     )
 
 
+RESUMENES_PATH = BASE_DIR / "data" / "resumenes.csv"
+
+
+def leer_resumenes() -> dict[str, str]:
+    """Resúmenes redactados a mano, guardados aparte de los CSV importados.
+
+    Así una nueva importación del catálogo no los borra.
+    """
+    if not RESUMENES_PATH.exists():
+        return {}
+    with RESUMENES_PATH.open(encoding="utf-8-sig", newline="") as archivo:
+        return {
+            fila["id"]: fila["resumen"].strip()
+            for fila in csv.DictReader(archivo)
+            if fila.get("id") and fila.get("resumen", "").strip()
+        }
+
+
+def con_resumen(videojuego: dict[str, str], resumenes: dict[str, str]) -> dict[str, str]:
+    # El resumen del CSV del año tiene prioridad; el manual solo rellena huecos.
+    if not videojuego.get("resumen") and videojuego.get("id") in resumenes:
+        videojuego["resumen"] = resumenes[videojuego["id"]]
+    return videojuego
+
+
 def cargar_catalogo() -> None:
     """Lee los CSV una sola vez y prepara índices, categorías y JSON."""
     global ARCHIVOS, VIDEOJUEGOS_POR_ANIO, VIDEOJUEGOS_POR_ID
     global FICHAS_BUSQUEDA, CATEGORIAS_POR_ANIO, JSON_POR_ANIO
     ARCHIVOS = archivos_disponibles()
+    resumenes = leer_resumenes()
     VIDEOJUEGOS_POR_ANIO = {
-        anio: tuple(leer_videojuegos(path))
+        anio: tuple(con_resumen(videojuego, resumenes) for videojuego in leer_videojuegos(path))
         for anio, path in ARCHIVOS.items()
     }
     VIDEOJUEGOS_POR_ID = {
@@ -198,6 +226,15 @@ def cargar_catalogo() -> None:
         anio: serializar_json(videojuegos)
         for anio, videojuegos in VIDEOJUEGOS_POR_ANIO.items()
     }
+    # "todos" junta los años en orden y deja al final los juegos sin fecha.
+    todos = tuple(
+        videojuego
+        for anio in sorted(VIDEOJUEGOS_POR_ANIO, key=lambda clave: (clave == "sin_fecha", clave))
+        for videojuego in VIDEOJUEGOS_POR_ANIO[anio]
+    )
+    VIDEOJUEGOS_POR_ANIO[TODOS_LOS_ANIOS] = todos
+    CATEGORIAS_POR_ANIO[TODOS_LOS_ANIOS] = categorias_unicas(todos)
+    JSON_POR_ANIO[TODOS_LOS_ANIOS] = serializar_json(todos)
 
 
 def buscar_videojuego(videojuego_id: str) -> dict[str, str] | None:
@@ -264,6 +301,8 @@ def filtrar_videojuegos(
     consulta: str,
     categoria: str,
     mes: str,
+    genero: str = "",
+    nota_minima: int | None = None,
 ) -> Iterator[dict[str, str]]:
     # La consulta y la categoría se normalizan una vez por petición, no por juego.
     terminos = normalizar_texto(consulta).split() if consulta else []
@@ -271,6 +310,12 @@ def filtrar_videojuegos(
     for videojuego in videojuegos:
         if categoria and ficha_busqueda(videojuego).categoria != categoria_normalizada:
             continue
+        if genero and genero not in GENEROS_POR_JUEGO.get(videojuego.get("id", ""), ()):
+            continue
+        if nota_minima is not None:
+            valor = nota(videojuego, "puntuacion_metacritic_criticos")
+            if valor is None or valor < nota_minima:
+                continue
         if mes and not videojuego.get("fecha_salida", "").startswith(
             f"{videojuego.get('anio_salida', '')}-{mes}-"
         ):
@@ -825,12 +870,15 @@ def obtener_anios():
 @app.route("/api/videojuegos", methods=["GET"])
 def obtener_videojuegos():
     anio = request.args.get("anio", "").strip()
+    if not anio and request.args.get("q", "").strip():
+        # Buscar por nombre sin elegir año recorre todo el catálogo.
+        anio = TODOS_LOS_ANIOS
     if not anio:
         return (
             jsonify(
                 {
                     "error": (
-                        "Indica un año o 'sin-fecha' en el parámetro anio."
+                        "Indica un año, 'sin-fecha' o 'todos' en el parámetro anio."
                     )
                 }
             ),
@@ -849,14 +897,45 @@ def obtener_videojuegos():
         return jsonify({"error": "El mes debe ser un número entre 1 y 12."}), 400
     if mes:
         mes = f"{int(mes):02d}"
-    if consulta or categoria or mes:
-        cuerpo = serializar_json(
-            filtrar_videojuegos(videojuegos, consulta, categoria, mes)
-        )
+    genero = request.args.get("genero", "").strip()
+    if genero and genero not in NOMBRES_GENERO:
+        return jsonify({
+            "error": "Género no válido. Consulta /api/generos para ver los disponibles."
+        }), 400
+    nota_texto = request.args.get("nota_min", "").strip()
+    if nota_texto and (not nota_texto.isdecimal() or not 0 <= int(nota_texto) <= 100):
+        return jsonify({"error": "La nota mínima debe ser un número entre 0 y 100."}), 400
+    nota_minima = int(nota_texto) if nota_texto else None
+    orden = request.args.get("orden", "fecha").strip() or "fecha"
+    if orden not in ORDENES_VIDEOJUEGOS:
+        return jsonify({
+            "error": "El orden debe ser " + ", ".join(ORDENES_VIDEOJUEGOS) + "."
+        }), 400
+    if consulta or categoria or mes or genero or nota_minima is not None or orden != "fecha":
+        resultado = list(filtrar_videojuegos(
+            videojuegos, consulta, categoria, mes, genero, nota_minima
+        ))
+        ordenar_videojuegos(resultado, orden)
+        cuerpo = serializar_json(resultado)
     else:
         # El catálogo completo de cada año ya está serializado desde el arranque.
         cuerpo = JSON_POR_ANIO[clave_anio]
     return respuesta_json_cacheable(cuerpo)
+
+
+ORDENES_VIDEOJUEGOS = ("fecha", "nota", "titulo")
+
+
+def ordenar_videojuegos(videojuegos: list[dict[str, str]], orden: str) -> None:
+    """Ordena en el sitio. "fecha" respeta el orden de los CSV (cronológico)."""
+    if orden == "nota":
+        # Mejor nota primero; los juegos sin nota van al final.
+        videojuegos.sort(key=lambda juego: (
+            -(nota(juego, "puntuacion_metacritic_criticos") or -1),
+            juego.get("titulo", "").casefold(),
+        ))
+    elif orden == "titulo":
+        videojuegos.sort(key=lambda juego: normalizar_texto(juego.get("titulo", "")))
 
 
 def respuesta_json_cacheable(cuerpo: bytes) -> Response:
@@ -888,6 +967,107 @@ def obtener_videojuego(videojuego_id: str):
     return jsonify({"error": "Videojuego no encontrado."}), 404
 
 
+LIMITE_SIMILARES = 6
+LIMITE_SIMILARES_MAX = 20
+
+
+ARTICULOS_INICIALES = frozenset({"the", "a", "an", "el", "la", "los", "las"})
+# Marcas que preceden a sagas distintas: "EA Sports FC" no es "EA Sports PGA Tour".
+PREFIJOS_DE_MARCA = frozenset({"ea sports", "marvel s", "tom clancy", "sid meier", "disney pixar"})
+
+
+def clave_saga(titulo: str) -> str:
+    """Las dos primeras palabras del título: "Final Fantasy", "Elden Ring"...
+
+    Basta para reconocer entregas de una misma saga sin una lista manual.
+    """
+    palabras = re.sub(r"[^a-z0-9 ]+", " ", normalizar_texto(titulo)).split()
+    if palabras and palabras[0] in ARTICULOS_INICIALES:
+        palabras = palabras[1:]
+    if len(palabras) < 2:
+        return ""
+    longitud = 3 if " ".join(palabras[:2]) in PREFIJOS_DE_MARCA else 2
+    return " ".join(palabras[:longitud]) if len(palabras) >= longitud else ""
+
+
+def puntuar_similitud(
+    base: dict[str, str], generos_base: set[str], candidato: dict[str, str]
+) -> tuple[float, list[str]]:
+    """Cuánto se parece un juego a otro y por qué, para explicarlo en la ficha."""
+    generos = set(generos_de(candidato))
+    comunes = generos_base & generos
+    saga = clave_saga(base.get("titulo", ""))
+    misma_saga = bool(saga) and saga == clave_saga(candidato.get("titulo", ""))
+    if not comunes and not misma_saga:
+        return 0.0, []
+    # Jaccard: compartir 2 de 2 géneros pesa más que 1 de 4.
+    puntos = 10 * len(comunes) / len(generos_base | generos) if generos else 0.0
+    motivos = ["misma saga"] if misma_saga else []
+    if misma_saga:
+        puntos += 6
+    motivos += [NOMBRES_GENERO[g] for g in GENEROS_POR_SLUG_ORDEN if g in comunes]
+    estudio_base = normalizar_texto(base.get("desarrollador", "")).strip()
+    if estudio_base and estudio_base == normalizar_texto(
+        candidato.get("desarrollador", "")
+    ).strip():
+        puntos += 4
+        motivos.append("mismo estudio")
+    nota_candidato = nota(candidato, "puntuacion_metacritic_criticos")
+    if nota_candidato is not None:
+        # Entre dos juegos parecidos, se recomienda antes el mejor valorado.
+        puntos += max(0.0, nota_candidato - 60) / 10
+    if base.get("anio_salida", "").isdecimal() and candidato.get(
+        "anio_salida", ""
+    ).isdecimal():
+        puntos -= abs(int(base["anio_salida"]) - int(candidato["anio_salida"])) * 0.3
+    return puntos, motivos
+
+
+def juegos_similares(videojuego: dict[str, str], limite: int) -> list[dict[str, object]]:
+    base = videojuego
+    resultado: list[dict[str, object]] = []
+    # Para una expansión, lo primero que se recomienda es su juego base.
+    juego_base = VIDEOJUEGOS_POR_ID.get(videojuego.get("juego_base_id", ""))
+    if juego_base is not None:
+        base = juego_base
+        resultado.append(con_destacado(juego_base, "Juego base"))
+    generos_base = set(generos_de(base))
+    if not generos_base and not clave_saga(base.get("titulo", "")):
+        return resultado[:limite]
+    puntuados = []
+    for candidato in VIDEOJUEGOS_POR_ID.values():
+        if candidato["id"] in {videojuego["id"], base["id"]}:
+            continue
+        puntos, motivos = puntuar_similitud(base, generos_base, candidato)
+        if puntos > 0:
+            puntuados.append((puntos, candidato, motivos))
+    puntuados.sort(key=lambda trio: (-trio[0], trio[1]["titulo"].casefold()))
+    resultado.extend(
+        con_destacado(candidato, " · ".join(motivos))
+        for _, candidato, motivos in puntuados[: limite - len(resultado)]
+    )
+    return resultado
+
+
+@app.route("/api/videojuegos/<videojuego_id>/similares", methods=["GET"])
+def obtener_similares(videojuego_id: str):
+    videojuego = buscar_videojuego(videojuego_id)
+    if videojuego is None:
+        return jsonify({"error": "Videojuego no encontrado."}), 404
+    limite_texto = request.args.get("limite", str(LIMITE_SIMILARES)).strip()
+    if not limite_texto.isdecimal() or not 1 <= int(limite_texto) <= LIMITE_SIMILARES_MAX:
+        return jsonify({
+            "error": f"El límite debe ser un número entre 1 y {LIMITE_SIMILARES_MAX}."
+        }), 400
+    cuerpo = {
+        "id": videojuego["id"],
+        "titulo": videojuego["titulo"],
+        "generos": [NOMBRES_GENERO[g] for g in generos_de(videojuego)],
+        "similares": juegos_similares(videojuego, int(limite_texto)),
+    }
+    return respuesta_json_cacheable(json.dumps(cuerpo, ensure_ascii=False).encode())
+
+
 @app.route("/imagenes/<videojuego_id>", methods=["GET"])
 def obtener_imagen_real(videojuego_id: str):
     videojuego = buscar_videojuego(videojuego_id)
@@ -912,8 +1092,8 @@ def obtener_imagen_real(videojuego_id: str):
 # usuario pueda explorar por género, cada categoría se asigna a una o varias
 # familias buscando palabras clave en el texto ya normalizado.
 GENEROS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("accion", "Acción", ("action", "accion", "hack and slash", "beat 'em up", "brawler", "parkour")),
-    ("aventura", "Aventura", ("adventure", "aventura", "visual novel", "interactive drama", "interactive fiction", "interactive film", "walking simulator", "point-and-click", "exploration", "mystery", "detective")),
+    ("accion", "Acción", ("action", "accion", "hack and slash", "beat 'em up", "brawler", "parkour", "stealth", "mech", "combat", "arcade")),
+    ("aventura", "Aventura", ("adventure", "aventura", "visual novel", "interactive drama", "interactive fiction", "interactive film", "walking simulator", "point-and-click", "exploration", "mystery", "detective", "thriller")),
     ("rol", "Rol (RPG)", ("role-playing", "role playing", "rpg", "soulslike", "dungeon crawl", "massively multiplayer")),
     ("shooter", "Shooter", ("shooter", "shoot 'em up", "run and gun", "bullet hell", "battle royale")),
     ("terror", "Terror", ("horror", "terror")),
@@ -921,15 +1101,16 @@ GENEROS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("deportes", "Deportes", ("sport", "football", "golf", "baseball", "basketball", "tennis", "rugby", "skateboarding", "snowboarding", "cycling")),
     ("conduccion", "Conducción", ("racing", "driving", "conduccion", "rally", "vehicular")),
     ("lucha", "Lucha", ("fighting", "fighter", "airdasher")),
-    ("estrategia", "Estrategia", ("strategy", "tactic", "tower defense", "4x", "auto battler", "deck-building", "card", "board")),
+    ("estrategia", "Estrategia", ("strategy", "tactic", "tower defense", "4x", "auto battler", "deck-building", "card", "board", "battle arena")),
     ("simulacion", "Simulación", ("simulation", "simulator", "sim ", "city-build", "management", "farm", "sandbox")),
     ("puzles", "Puzles", ("puzzle", "match-three", "brain", "metroidbrainia")),
     ("roguelike", "Roguelike", ("roguelike", "roguelite", "rougelike")),
     ("musical", "Musical y ritmo", ("rhythm", "music")),
     ("supervivencia", "Supervivencia", ("survival",)),
-    ("casual", "Casual y familiar", ("casual", "party", "family")),
+    ("casual", "Casual y familiar", ("casual", "party", "family", "social deduction", "incremental", "compilation")),
 )
 NOMBRES_GENERO = {slug: nombre for slug, nombre, _ in GENEROS}
+GENEROS_POR_SLUG_ORDEN = tuple(slug for slug, _, _ in GENEROS)
 COLECCIONES_DIR = BASE_DIR / "data" / "colecciones"
 LIMITE_COLECCION = 50
 LIMITE_COLECCION_MAX = 200
@@ -1334,6 +1515,219 @@ def descargar_videojuegos_csv():
         mimetype="application/gzip" if path.suffix == ".gz" else "text/csv",
         as_attachment=True,
         download_name=path.name.removeprefix("videojuegos_"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Documentación de la API
+# ---------------------------------------------------------------------------
+# Una sola descripción sirve para la página /api/docs y para /api/openapi.json,
+# así las dos no se desincronizan. Un test comprueba que toda ruta pública /api
+# aparece aquí.
+@dataclass(frozen=True, slots=True)
+class Parametro:
+    nombre: str
+    lugar: str  # "query" o "path"
+    tipo: str
+    descripcion: str
+    requerido: bool = False
+    ejemplo: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class Endpoint:
+    ruta: str
+    titulo: str
+    descripcion: str
+    formato: str = "JSON"
+    parametros: tuple[Parametro, ...] = ()
+    ejemplos: tuple[str, ...] = ()
+    errores: tuple[tuple[int, str], ...] = ()
+    grupo: str = "Catálogo"
+
+    @property
+    def ancla(self) -> str:
+        return slug(self.ruta.replace("<", "").replace(">", "")) or "inicio"
+
+
+PARAMETRO_ANIO_COLECCION = Parametro(
+    "anio", "query", "integer", "Solo juegos de ese año (cuatro cifras).", ejemplo="2024"
+)
+PARAMETRO_GENERO = Parametro(
+    "genero", "query", "string", "Slug de género de /api/generos, por ejemplo rol o terror.",
+    ejemplo="rol",
+)
+ENDPOINTS: tuple[Endpoint, ...] = (
+    Endpoint(
+        "/api/anios", "Años disponibles",
+        "Lista los años con archivo de catálogo y si existe el archivo de juegos sin fecha.",
+        ejemplos=("/api/anios",),
+    ),
+    Endpoint(
+        "/api/videojuegos", "Buscar y listar videojuegos",
+        "Devuelve los juegos de un año, o de todo el catálogo con anio=todos. "
+        "La búsqueda por nombre tolera tildes, mayúsculas y pequeñas erratas. "
+        "Si se indica q sin anio, se busca en todos los años.",
+        parametros=(
+            Parametro("anio", "query", "string", "Año (2024), 'sin-fecha' o 'todos'. Obligatorio salvo que se indique q.", ejemplo="2024"),
+            Parametro("q", "query", "string", "Texto a buscar en el título.", ejemplo="resident evil"),
+            Parametro("categoria", "query", "string", "Categoría exacta tal y como la devuelve /api/categorias."),
+            Parametro("mes", "query", "integer", "Mes de salida, de 1 a 12.", ejemplo="10"),
+            PARAMETRO_GENERO,
+            Parametro("nota_min", "query", "integer", "Nota mínima de la crítica en Metacritic (0-100). Excluye los juegos sin nota.", ejemplo="85"),
+            Parametro("orden", "query", "string", "fecha (por defecto), nota (mejor primero) o titulo (A-Z).", ejemplo="nota"),
+        ),
+        ejemplos=(
+            "/api/videojuegos?anio=2024&mes=10",
+            "/api/videojuegos?q=resident evil",
+            "/api/videojuegos?anio=2024&genero=rol&nota_min=85&orden=nota",
+        ),
+        errores=((400, "Falta el año, o el mes, género, nota mínima u orden no son válidos."), (404, "No existe archivo para ese año.")),
+    ),
+    Endpoint(
+        "/api/videojuegos/<videojuego_id>", "Ficha de un videojuego",
+        "Devuelve un juego por su identificador. También sirve para expansiones y "
+        "para los juegos citados en colecciones que no están en el catálogo.",
+        parametros=(Parametro("videojuego_id", "path", "string", "Identificador del juego.", True, "elden-ring"),),
+        ejemplos=("/api/videojuegos/elden-ring",),
+        errores=((404, "No existe ningún juego con ese identificador."),),
+    ),
+    Endpoint(
+        "/api/videojuegos/<videojuego_id>/similares", "Juegos parecidos",
+        "Recomienda juegos por saga, géneros en común, estudio, nota y cercanía de año. "
+        "Cada recomendación explica el motivo en el campo destacado.",
+        parametros=(
+            Parametro("videojuego_id", "path", "string", "Identificador del juego.", True, "elden-ring"),
+            Parametro("limite", "query", "integer", f"Número de recomendaciones (1-{LIMITE_SIMILARES_MAX}, por defecto {LIMITE_SIMILARES}).", ejemplo="6"),
+        ),
+        ejemplos=("/api/videojuegos/elden-ring/similares",),
+        errores=((400, "Límite fuera de rango."), (404, "No existe ningún juego con ese identificador.")),
+    ),
+    Endpoint(
+        "/api/categorias", "Categorías de un año",
+        "Categorías originales (de Wikipedia) presentes en un año, para usarlas en el filtro categoria.",
+        parametros=(Parametro("anio", "query", "string", "Año, 'sin-fecha' o 'todos'.", True, "2024"),),
+        ejemplos=("/api/categorias?anio=2024",),
+        errores=((404, "No existe archivo para ese año."),),
+    ),
+    Endpoint(
+        "/api/generos", "Géneros unificados",
+        "Los 16 géneros en español que agrupan las categorías de Wikipedia, con el número de juegos de cada uno.",
+        ejemplos=("/api/generos",), grupo="Descubrir",
+    ),
+    Endpoint(
+        "/api/descubrir", "Colecciones disponibles",
+        "Lista las colecciones para descubrir juegos con su descripción y su URL.",
+        ejemplos=("/api/descubrir",), grupo="Descubrir",
+    ),
+    Endpoint(
+        "/api/descubrir/<slug_coleccion>", "Juegos de una colección",
+        "Juegos de una colección ya ordenados por su criterio: "
+        + ", ".join(coleccion.slug for coleccion in COLECCIONES) + ".",
+        parametros=(
+            Parametro("slug_coleccion", "path", "string", "Colección de /api/descubrir.", True, "mejor-valorados"),
+            PARAMETRO_GENERO,
+            PARAMETRO_ANIO_COLECCION,
+            Parametro("limite", "query", "integer", f"Máximo de juegos (1-{LIMITE_COLECCION_MAX}, por defecto {LIMITE_COLECCION}).", ejemplo="10"),
+        ),
+        ejemplos=("/api/descubrir/mejor-valorados?genero=rol&limite=10", "/api/descubrir/goty"),
+        errores=((400, "Año, género o límite no válidos."), (404, "La colección no existe.")),
+        grupo="Descubrir",
+    ),
+    Endpoint(
+        "/imagenes/<videojuego_id>", "Portada de un videojuego",
+        "Portada del juego (oficial si se encuentra; si no, una ilustración SVG generada con su título).",
+        formato="Imagen",
+        parametros=(Parametro("videojuego_id", "path", "string", "Identificador del juego.", True, "astro-bot"),),
+        ejemplos=("/imagenes/astro-bot",),
+        errores=((404, "No existe ningún juego con ese identificador."),),
+        grupo="Archivos",
+    ),
+    Endpoint(
+        "/videojuegos.csv", "Descargar el CSV de un año",
+        "Descarga el archivo original del catálogo de un año (CSV o CSV comprimido).",
+        formato="CSV",
+        parametros=(Parametro("anio", "query", "string", "Año o 'sin-fecha'.", True, "2026"),),
+        ejemplos=("/videojuegos.csv?anio=2026",),
+        errores=((400, "Falta el año."), (404, "No existe archivo para ese año.")),
+        grupo="Archivos",
+    ),
+    Endpoint(
+        "/api/openapi.json", "Especificación OpenAPI",
+        "Esta misma documentación en formato OpenAPI 3.1, para importarla en Postman, Insomnia o Swagger.",
+        ejemplos=("/api/openapi.json",), grupo="Documentación",
+    ),
+)
+
+
+def especificacion_openapi() -> dict[str, object]:
+    tipos_contenido = {"JSON": "application/json", "CSV": "text/csv", "Imagen": "image/*"}
+    rutas: dict[str, object] = {}
+    for endpoint in ENDPOINTS:
+        ruta = re.sub(r"<([^>]+)>", r"{\1}", endpoint.ruta)
+        respuestas: dict[str, object] = {
+            "200": {
+                "description": "Respuesta correcta.",
+                "content": {tipos_contenido[endpoint.formato]: {}},
+            }
+        }
+        for codigo, mensaje in endpoint.errores:
+            respuestas[str(codigo)] = {
+                "description": mensaje,
+                "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}},
+            }
+        rutas[ruta] = {
+            "get": {
+                "summary": endpoint.titulo,
+                "description": endpoint.descripcion,
+                "tags": [endpoint.grupo],
+                "operationId": endpoint.ancla,
+                "parameters": [
+                    {
+                        "name": parametro.nombre,
+                        "in": parametro.lugar,
+                        "required": parametro.requerido or parametro.lugar == "path",
+                        "description": parametro.descripcion,
+                        "schema": {"type": parametro.tipo},
+                        **({"example": parametro.ejemplo} if parametro.ejemplo else {}),
+                    }
+                    for parametro in endpoint.parametros
+                ],
+                "responses": respuestas,
+            }
+        }
+    return {
+        "openapi": "3.1.0",
+        "info": {
+            "title": "API Calendario PS5",
+            "version": "1.0.0",
+            "description": "Catálogo de videojuegos de PS5 por año, con búsqueda, fichas, colecciones y recomendaciones.",
+        },
+        "servers": [{"url": request.host_url.rstrip("/")}],
+        "paths": rutas,
+        "components": {
+            "schemas": {
+                "Error": {"type": "object", "properties": {"error": {"type": "string"}}}
+            }
+        },
+    }
+
+
+@app.route("/api/openapi.json", methods=["GET"])
+def obtener_openapi():
+    return jsonify(especificacion_openapi())
+
+
+@app.route("/api/docs", methods=["GET"])
+def documentacion_api():
+    grupos: dict[str, list[Endpoint]] = {}
+    for endpoint in ENDPOINTS:
+        grupos.setdefault(endpoint.grupo, []).append(endpoint)
+    return render_template(
+        "docs.html",
+        grupos=grupos,
+        base_url=request.host_url.rstrip("/"),
+        total=len(ENDPOINTS),
     )
 
 
