@@ -108,6 +108,8 @@ VIDEOJUEGOS_POR_ID: dict[str, dict[str, str]] = {}
 FICHAS_BUSQUEDA: dict[int, FichaBusqueda] = {}
 CATEGORIAS_POR_ANIO: dict[str, tuple[str, ...]] = {}
 JSON_POR_ANIO: dict[str, bytes] = {}
+# Clave especial para buscar en el catálogo completo, sin elegir año.
+TODOS_LOS_ANIOS = "todos"
 
 
 def archivos_disponibles() -> dict[str, Path]:
@@ -198,6 +200,15 @@ def cargar_catalogo() -> None:
         anio: serializar_json(videojuegos)
         for anio, videojuegos in VIDEOJUEGOS_POR_ANIO.items()
     }
+    # "todos" junta los años en orden y deja al final los juegos sin fecha.
+    todos = tuple(
+        videojuego
+        for anio in sorted(VIDEOJUEGOS_POR_ANIO, key=lambda clave: (clave == "sin_fecha", clave))
+        for videojuego in VIDEOJUEGOS_POR_ANIO[anio]
+    )
+    VIDEOJUEGOS_POR_ANIO[TODOS_LOS_ANIOS] = todos
+    CATEGORIAS_POR_ANIO[TODOS_LOS_ANIOS] = categorias_unicas(todos)
+    JSON_POR_ANIO[TODOS_LOS_ANIOS] = serializar_json(todos)
 
 
 def buscar_videojuego(videojuego_id: str) -> dict[str, str] | None:
@@ -825,12 +836,15 @@ def obtener_anios():
 @app.route("/api/videojuegos", methods=["GET"])
 def obtener_videojuegos():
     anio = request.args.get("anio", "").strip()
+    if not anio and request.args.get("q", "").strip():
+        # Buscar por nombre sin elegir año recorre todo el catálogo.
+        anio = TODOS_LOS_ANIOS
     if not anio:
         return (
             jsonify(
                 {
                     "error": (
-                        "Indica un año o 'sin-fecha' en el parámetro anio."
+                        "Indica un año, 'sin-fecha' o 'todos' en el parámetro anio."
                     )
                 }
             ),
@@ -888,6 +902,107 @@ def obtener_videojuego(videojuego_id: str):
     return jsonify({"error": "Videojuego no encontrado."}), 404
 
 
+LIMITE_SIMILARES = 6
+LIMITE_SIMILARES_MAX = 20
+
+
+ARTICULOS_INICIALES = frozenset({"the", "a", "an", "el", "la", "los", "las"})
+# Marcas que preceden a sagas distintas: "EA Sports FC" no es "EA Sports PGA Tour".
+PREFIJOS_DE_MARCA = frozenset({"ea sports", "marvel s", "tom clancy", "sid meier", "disney pixar"})
+
+
+def clave_saga(titulo: str) -> str:
+    """Las dos primeras palabras del título: "Final Fantasy", "Elden Ring"...
+
+    Basta para reconocer entregas de una misma saga sin una lista manual.
+    """
+    palabras = re.sub(r"[^a-z0-9 ]+", " ", normalizar_texto(titulo)).split()
+    if palabras and palabras[0] in ARTICULOS_INICIALES:
+        palabras = palabras[1:]
+    if len(palabras) < 2:
+        return ""
+    longitud = 3 if " ".join(palabras[:2]) in PREFIJOS_DE_MARCA else 2
+    return " ".join(palabras[:longitud]) if len(palabras) >= longitud else ""
+
+
+def puntuar_similitud(
+    base: dict[str, str], generos_base: set[str], candidato: dict[str, str]
+) -> tuple[float, list[str]]:
+    """Cuánto se parece un juego a otro y por qué, para explicarlo en la ficha."""
+    generos = set(generos_de(candidato))
+    comunes = generos_base & generos
+    saga = clave_saga(base.get("titulo", ""))
+    misma_saga = bool(saga) and saga == clave_saga(candidato.get("titulo", ""))
+    if not comunes and not misma_saga:
+        return 0.0, []
+    # Jaccard: compartir 2 de 2 géneros pesa más que 1 de 4.
+    puntos = 10 * len(comunes) / len(generos_base | generos) if generos else 0.0
+    motivos = ["misma saga"] if misma_saga else []
+    if misma_saga:
+        puntos += 6
+    motivos += [NOMBRES_GENERO[g] for g in GENEROS_POR_SLUG_ORDEN if g in comunes]
+    estudio_base = normalizar_texto(base.get("desarrollador", "")).strip()
+    if estudio_base and estudio_base == normalizar_texto(
+        candidato.get("desarrollador", "")
+    ).strip():
+        puntos += 4
+        motivos.append("mismo estudio")
+    nota_candidato = nota(candidato, "puntuacion_metacritic_criticos")
+    if nota_candidato is not None:
+        # Entre dos juegos parecidos, se recomienda antes el mejor valorado.
+        puntos += max(0.0, nota_candidato - 60) / 10
+    if base.get("anio_salida", "").isdecimal() and candidato.get(
+        "anio_salida", ""
+    ).isdecimal():
+        puntos -= abs(int(base["anio_salida"]) - int(candidato["anio_salida"])) * 0.3
+    return puntos, motivos
+
+
+def juegos_similares(videojuego: dict[str, str], limite: int) -> list[dict[str, object]]:
+    base = videojuego
+    resultado: list[dict[str, object]] = []
+    # Para una expansión, lo primero que se recomienda es su juego base.
+    juego_base = VIDEOJUEGOS_POR_ID.get(videojuego.get("juego_base_id", ""))
+    if juego_base is not None:
+        base = juego_base
+        resultado.append(con_destacado(juego_base, "Juego base"))
+    generos_base = set(generos_de(base))
+    if not generos_base and not clave_saga(base.get("titulo", "")):
+        return resultado[:limite]
+    puntuados = []
+    for candidato in VIDEOJUEGOS_POR_ID.values():
+        if candidato["id"] in {videojuego["id"], base["id"]}:
+            continue
+        puntos, motivos = puntuar_similitud(base, generos_base, candidato)
+        if puntos > 0:
+            puntuados.append((puntos, candidato, motivos))
+    puntuados.sort(key=lambda trio: (-trio[0], trio[1]["titulo"].casefold()))
+    resultado.extend(
+        con_destacado(candidato, " · ".join(motivos))
+        for _, candidato, motivos in puntuados[: limite - len(resultado)]
+    )
+    return resultado
+
+
+@app.route("/api/videojuegos/<videojuego_id>/similares", methods=["GET"])
+def obtener_similares(videojuego_id: str):
+    videojuego = buscar_videojuego(videojuego_id)
+    if videojuego is None:
+        return jsonify({"error": "Videojuego no encontrado."}), 404
+    limite_texto = request.args.get("limite", str(LIMITE_SIMILARES)).strip()
+    if not limite_texto.isdecimal() or not 1 <= int(limite_texto) <= LIMITE_SIMILARES_MAX:
+        return jsonify({
+            "error": f"El límite debe ser un número entre 1 y {LIMITE_SIMILARES_MAX}."
+        }), 400
+    cuerpo = {
+        "id": videojuego["id"],
+        "titulo": videojuego["titulo"],
+        "generos": [NOMBRES_GENERO[g] for g in generos_de(videojuego)],
+        "similares": juegos_similares(videojuego, int(limite_texto)),
+    }
+    return respuesta_json_cacheable(json.dumps(cuerpo, ensure_ascii=False).encode())
+
+
 @app.route("/imagenes/<videojuego_id>", methods=["GET"])
 def obtener_imagen_real(videojuego_id: str):
     videojuego = buscar_videojuego(videojuego_id)
@@ -912,8 +1027,8 @@ def obtener_imagen_real(videojuego_id: str):
 # usuario pueda explorar por género, cada categoría se asigna a una o varias
 # familias buscando palabras clave en el texto ya normalizado.
 GENEROS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("accion", "Acción", ("action", "accion", "hack and slash", "beat 'em up", "brawler", "parkour")),
-    ("aventura", "Aventura", ("adventure", "aventura", "visual novel", "interactive drama", "interactive fiction", "interactive film", "walking simulator", "point-and-click", "exploration", "mystery", "detective")),
+    ("accion", "Acción", ("action", "accion", "hack and slash", "beat 'em up", "brawler", "parkour", "stealth", "mech", "combat", "arcade")),
+    ("aventura", "Aventura", ("adventure", "aventura", "visual novel", "interactive drama", "interactive fiction", "interactive film", "walking simulator", "point-and-click", "exploration", "mystery", "detective", "thriller")),
     ("rol", "Rol (RPG)", ("role-playing", "role playing", "rpg", "soulslike", "dungeon crawl", "massively multiplayer")),
     ("shooter", "Shooter", ("shooter", "shoot 'em up", "run and gun", "bullet hell", "battle royale")),
     ("terror", "Terror", ("horror", "terror")),
@@ -921,15 +1036,16 @@ GENEROS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("deportes", "Deportes", ("sport", "football", "golf", "baseball", "basketball", "tennis", "rugby", "skateboarding", "snowboarding", "cycling")),
     ("conduccion", "Conducción", ("racing", "driving", "conduccion", "rally", "vehicular")),
     ("lucha", "Lucha", ("fighting", "fighter", "airdasher")),
-    ("estrategia", "Estrategia", ("strategy", "tactic", "tower defense", "4x", "auto battler", "deck-building", "card", "board")),
+    ("estrategia", "Estrategia", ("strategy", "tactic", "tower defense", "4x", "auto battler", "deck-building", "card", "board", "battle arena")),
     ("simulacion", "Simulación", ("simulation", "simulator", "sim ", "city-build", "management", "farm", "sandbox")),
     ("puzles", "Puzles", ("puzzle", "match-three", "brain", "metroidbrainia")),
     ("roguelike", "Roguelike", ("roguelike", "roguelite", "rougelike")),
     ("musical", "Musical y ritmo", ("rhythm", "music")),
     ("supervivencia", "Supervivencia", ("survival",)),
-    ("casual", "Casual y familiar", ("casual", "party", "family")),
+    ("casual", "Casual y familiar", ("casual", "party", "family", "social deduction", "incremental", "compilation")),
 )
 NOMBRES_GENERO = {slug: nombre for slug, nombre, _ in GENEROS}
+GENEROS_POR_SLUG_ORDEN = tuple(slug for slug, _, _ in GENEROS)
 COLECCIONES_DIR = BASE_DIR / "data" / "colecciones"
 LIMITE_COLECCION = 50
 LIMITE_COLECCION_MAX = 200

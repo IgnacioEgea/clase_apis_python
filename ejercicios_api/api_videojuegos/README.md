@@ -60,6 +60,8 @@ el puerto que Render proporciona por la variable `PORT`.
 - `GET /api/descubrir`: colecciones para descubrir juegos.
 - `GET /api/descubrir/<coleccion>?genero=rol&anio=2024&limite=20`: juegos de una colección, ya ordenados.
 - `GET /api/generos`: géneros unificados con su número de juegos.
+- `GET /api/videojuegos?anio=todos&q=resident`: buscar en todos los años (sin `anio`, una búsqueda con `q` también recorre todo el catálogo).
+- `GET /api/videojuegos/<id>/similares?limite=6`: juegos parecidos (misma saga, géneros, estudio y nota).
 
 Las imágenes originales se obtienen de páginas oficiales o fichas públicas. Las
 miniaturas de Metacritic se resuelven a la imagen original en vez de usar la
